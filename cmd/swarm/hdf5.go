@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/PrincetonUniversity/ellipswarm"
 	"github.com/sbinet/go-hdf5"
-	"github.com/simleb/ellipswarm"
 )
 
 // RunHDF5 runs a simulation and saves data to an HDF5 file.

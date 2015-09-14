@@ -39,7 +39,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/simleb/ellipswarm"
+	"github.com/PrincetonUniversity/ellipswarm"
 )
 
 const usage = `Usage: swarm [config_file]
