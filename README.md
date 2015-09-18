@@ -9,6 +9,12 @@ To run simulations, you can use the `swarm` command found in `cmd/swarm/`:
 	$ go get github.com/PrincetonUniversity/ellipswarm/cmd/swarm
 	$ swarm
 
+**Note:** `$GOPATH/bin` must be in your path, otherwise use `$GOPATH/bin/swarm`.
+
+If you run into OpenGL issues at build time, you might want to install [GLFW][] and its dependencies.
+
+[GLFW]: http://www.glfw.org
+
 ## License
 
 The MIT License (MIT)
