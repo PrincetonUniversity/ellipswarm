@@ -15,6 +15,8 @@ If you run into OpenGL issues at build time, you might want to install [GLFW][] 
 
 [GLFW]: http://www.glfw.org
 
+You can remove OpenGL support completely using `go get -tags nogl`.
+
 ## License
 
 The MIT License (MIT)

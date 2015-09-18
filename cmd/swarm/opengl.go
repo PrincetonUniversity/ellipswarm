@@ -1,12 +1,14 @@
+// +build !nogl
+
 package main
 
 import (
 	"fmt"
 	"unsafe"
 
+	"github.com/PrincetonUniversity/ellipswarm"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
-	"github.com/PrincetonUniversity/ellipswarm"
 )
 
 // A Viewport is a rectangle delimiting the area of simulation space shown on screen.

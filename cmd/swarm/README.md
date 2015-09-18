@@ -6,6 +6,8 @@ Command swarm runs ellipswarm: vision-based swarming simulations.
 
 If you modify the shaders in `shaders/`, don't forget to run `go generate` to update `shaders.go`.
 
+To remove OpenGL support completely, compile with `go get -tags nogl`.
+
 ## License
 
 The MIT License (MIT)
