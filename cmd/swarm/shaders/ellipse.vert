@@ -8,7 +8,7 @@ layout(location = 2) in float width;
 layout(location = 3) in float offset;
 layout(location = 4) in vec4 color;
 
-out struct {
+out Data {
 	float dir;
 	vec2 size;
 	float offset;

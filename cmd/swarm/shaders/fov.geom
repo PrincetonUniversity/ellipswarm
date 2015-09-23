@@ -6,7 +6,7 @@ layout(triangle_strip, max_vertices=3) out;
 uniform vec2 vp[2]; // viewport
 uniform vec2 pos;   // position of focal individual
 
-in struct {
+in Data {
 	float attractivity;
 } Attr[2];
 

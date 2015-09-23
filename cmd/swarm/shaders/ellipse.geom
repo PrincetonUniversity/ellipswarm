@@ -3,7 +3,7 @@
 layout(points) in;
 layout(triangle_strip, max_vertices=21) out;
 
-in struct {
+in Data {
 	float dir;
 	vec2 size;
 	float offset;

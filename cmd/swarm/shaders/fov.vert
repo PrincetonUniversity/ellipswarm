@@ -5,7 +5,7 @@ uniform vec2 vp[2]; // viewport
 layout(location = 5) in vec2 fpos;
 layout(location = 6) in float attractivity;
 
-out struct {
+out Data {
 	float attractivity;
 } Attr;
 
