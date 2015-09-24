@@ -26,7 +26,7 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) error {
 		return err
 	}
 
-	dtype, err := hdf5.NewDatatypeFromValue(ellipswarm.Point{})
+	dtype, err := hdf5.NewDatatypeFromValue(ellipswarm.State{})
 	if err != nil {
 		return err
 	}
@@ -63,9 +63,9 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) error {
 		}
 
 		// make a dense array with just particle positions for now
-		p := make([]ellipswarm.Point, len(sim.Swarm))
+		p := make([]ellipswarm.State, len(sim.Swarm))
 		for i, v := range sim.Swarm {
-			p[i] = v.Pos
+			p[i] = v.State
 		}
 
 		if err := dset.WriteSubset(&p, memspace, dspace); err != nil {
