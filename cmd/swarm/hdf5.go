@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,8 +12,16 @@ import (
 	"github.com/sbinet/go-hdf5"
 )
 
+// A DataPoint is what is recorded in the HDF5 file for each particle at each step.
+// This structure is mapped to a compound datatype in HDF5 so member names are important.
+type DataPoint struct {
+	Pos   ellipswarm.Point // position
+	Dir   float64          // direction (angle in rad)
+	Group int              // index of the group that contains the particle
+}
+
 // RunHDF5 runs a simulation and saves data to an HDF5 file.
-func RunHDF5(conf *Config, sim *ellipswarm.Simulation) error {
+func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 	if err := os.MkdirAll(filepath.Dir(conf.Output), 0755); err != nil {
 		return err
 	}
@@ -20,66 +30,59 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer checkClose(&err, file)
 
 	if err := saveConfig(file, conf); err != nil {
 		return err
 	}
 
-	dtype, err := hdf5.NewDatatypeFromValue(ellipswarm.State{})
+	par, err := NewDataset(file, "particles", DataPoint{}, []int{conf.Steps, conf.SwarmSize})
 	if err != nil {
 		return err
 	}
-	defer dtype.Close()
+	defer checkClose(&err, par)
 
-	N := uint(conf.SwarmSize)
-	T := uint(conf.Steps)
-
-	dspace, err := hdf5.CreateSimpleDataspace([]uint{T, N}, nil)
+	grp, err := NewDataset(file, "groups", 0, []int{conf.Steps})
 	if err != nil {
 		return err
 	}
-	defer dspace.Close()
+	defer checkClose(&err, grp)
 
-	if err := dspace.SelectHyperslab([]uint{0, 0}, nil, []uint{1, N}, nil); err != nil {
-		return err
-	}
+	for k := uint(0); k < uint(conf.Steps); k++ {
+		// show progress as percentage
+		fmt.Printf("\r% 3d%%", 100*k/uint(conf.Steps))
 
-	memspace, err := hdf5.CreateSimpleDataspace([]uint{N}, nil)
-	if err != nil {
-		return err
-	}
-	defer memspace.Close()
-
-	dset, err := file.CreateDataset("particles", dtype, dspace)
-	if err != nil {
-		return err
-	}
-	defer dset.Close()
-
-	for k := uint(0); k < T; k++ {
-		if err := dspace.SetOffset([]uint{k, 0}); err != nil {
+		if err := par.DataSpace.SetOffset([]uint{k, 0}); err != nil {
+			return err
+		}
+		if err := grp.DataSpace.SetOffset([]uint{k}); err != nil {
 			return err
 		}
 
-		// make a dense array with just particle positions for now
-		p := make([]ellipswarm.State, len(sim.Swarm))
+		p := make([]DataPoint, len(sim.Swarm))
+		id, n := groupIDs(conf, sim)
 		for i, v := range sim.Swarm {
-			p[i] = v.State
+			p[i].Pos = v.Pos
+			p[i].Dir = v.Dir
+			p[i].Group = id[i]
 		}
 
-		if err := dset.WriteSubset(&p, memspace, dspace); err != nil {
+		if err := par.Dataset.WriteSubset(&p, par.MemSpace, par.DataSpace); err != nil {
+			return err
+		}
+		if err := grp.Dataset.WriteSubset(&n, grp.MemSpace, grp.DataSpace); err != nil {
 			return err
 		}
 
 		sim.Step()
 	}
+	fmt.Printf("\r100%%\n")
 	return nil
 }
 
 // saveConfig creates a "config" dataset with a null dataspace whose attributes
 // reflect the whole configuration plus some other appropriate metadata.
-func saveConfig(file *hdf5.File, conf *Config) error {
+func saveConfig(file *hdf5.File, conf *Config) (err error) {
 	null, err := hdf5.CreateDataspace(hdf5.S_NULL)
 	if err != nil {
 		return err
@@ -89,19 +92,19 @@ func saveConfig(file *hdf5.File, conf *Config) error {
 	if err != nil {
 		return err
 	}
-	defer anytype.Close()
+	defer checkClose(&err, anytype)
 
 	dset, err := file.CreateDataset("config", anytype, null)
 	if err != nil {
 		return err
 	}
-	defer dset.Close()
+	defer checkClose(&err, dset)
 
 	dtype, err := hdf5.NewDatatypeFromValue("")
 	if err != nil {
 		return err
 	}
-	defer dtype.Close()
+	defer checkClose(&err, dtype)
 
 	scalar, err := hdf5.CreateDataspace(hdf5.S_SCALAR)
 	if err != nil {
@@ -112,7 +115,7 @@ func saveConfig(file *hdf5.File, conf *Config) error {
 	if err != nil {
 		return err
 	}
-	defer attr.Close()
+	defer checkClose(&err, attr)
 
 	now := time.Now().String()
 	if err := attr.Write(&now, dtype); err != nil {
@@ -126,13 +129,13 @@ func saveConfig(file *hdf5.File, conf *Config) error {
 			if err != nil {
 				return err
 			}
-			defer dtype.Close()
+			defer checkClose(&err, dtype)
 
 			attr, err := dset.CreateAttribute(v.Type().Field(i).Name, dtype, scalar)
 			if err != nil {
 				return err
 			}
-			defer attr.Close()
+			defer checkClose(&err, attr)
 
 			if err := attr.Write(v.Field(i).Addr().Interface(), dtype); err != nil {
 				return err
@@ -145,4 +148,123 @@ func saveConfig(file *hdf5.File, conf *Config) error {
 	}
 
 	return nil
+}
+
+// A Dataset is a wrapper for an HDF5 Dataset and its associated Dataspaces.
+type Dataset struct {
+	Dataset   *hdf5.Dataset
+	DataSpace *hdf5.Dataspace
+	MemSpace  *hdf5.Dataspace
+}
+
+// NewDataset creates a Dataset.
+func NewDataset(file *hdf5.File, name string, valOfType interface{}, dims []int) (*Dataset, error) {
+	var d = new(Dataset)
+	dtype, err := hdf5.NewDatatypeFromValue(valOfType)
+	if err != nil {
+		return nil, err
+	}
+	defer checkClose(&err, dtype)
+
+	udims := make([]uint, len(dims))
+	for i, d := range dims {
+		udims[i] = uint(d)
+	}
+
+	d.DataSpace, err = hdf5.CreateSimpleDataspace(udims, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	start := make([]uint, len(dims))
+	count := make([]uint, len(dims))
+	copy(count, udims)
+	count[0] = 1
+
+	if err := d.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
+		checkClose(&err, d.DataSpace)
+		return nil, err
+	}
+
+	if len(dims) == 1 {
+		d.MemSpace, err = hdf5.CreateDataspace(hdf5.S_SCALAR)
+	} else {
+		d.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
+	}
+	if err != nil {
+		checkClose(&err, d.DataSpace)
+		return nil, err
+	}
+
+	d.Dataset, err = file.CreateDataset(name, dtype, d.DataSpace)
+	if err != nil {
+		checkClose(&err, d.DataSpace)
+		checkClose(&err, d.MemSpace)
+		return nil, err
+	}
+
+	return d, err
+}
+
+// Close closes the HDF5 Dataset and Dataspaces.
+func (d *Dataset) Close() error {
+	if err := d.Dataset.Close(); err != nil {
+		return err
+	}
+	if err := d.MemSpace.Close(); err != nil {
+		return err
+	}
+	if err := d.DataSpace.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// groupIDs returns for each particle the ID of the group that contains it
+// and the total number of groups. Solitary individuals are assigned to group 0.
+// Group IDs are always sequential and start at 1.
+func groupIDs(conf *Config, sim *ellipswarm.Simulation) ([]int, int) {
+	id := make([]int, conf.SwarmSize)
+	nid := 1
+	for i, p := range sim.Swarm {
+		for j := i + 1; j < conf.SwarmSize; j++ {
+			if sim.Env.Dist(p.State.Pos, sim.Swarm[j].State.Pos) <= conf.MaxGroupDist {
+				if id[i] > 0 && id[j] > 0 && id[i] != id[j] {
+					// merge i's group and j's group
+					min, max := id[i], id[j]
+					if min > max {
+						min, max = max, min
+					}
+					for k, v := range id {
+						if v == max {
+							id[k] = min
+						}
+						if v > max {
+							id[k]--
+						}
+					}
+					nid--
+				} else if id[i] > 0 {
+					// attach j to i's group
+					id[j] = id[i]
+				} else if id[j] > 0 {
+					// attach i to j's group
+					id[i] = id[j]
+				} else {
+					// form a new group
+					id[i] = nid
+					id[j] = nid
+					nid++
+				}
+			}
+		}
+	}
+	return id, nid - 1
+}
+
+// checkClose checks for errors in deferred calls.
+func checkClose(err *error, c io.Closer) {
+	if cerr := c.Close(); *err == nil {
+		*err = cerr
+	}
 }

@@ -29,6 +29,9 @@ type Config struct {
 	// Boundary conditions parameters
 	DomainType string  // possible values: infinite, finite, periodic
 	DomainSize float64 // unit: body length
+
+	// Extra computations parameters
+	MaxGroupDist float64 // unit: body length
 }
 
 // DefaultConfig are the default parameters.
@@ -47,6 +50,7 @@ var DefaultConf = &Config{
 	MaxContrast:       0.1,
 	DomainType:        "infinite",
 	DomainSize:        50,
+	MaxGroupDist:      4,
 }
 
 // ParseConfig parses the TOML config file whose path is provided.
