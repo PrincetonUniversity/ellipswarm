@@ -20,10 +20,10 @@ type Environment struct {
 	// it can be used to create periodic boundary conditions.
 	Dist func(a, b Point) float64
 
-	// Distinct returns wether two objects separated by an angle θ and
-	// at respective distance r1 and r2 from the observer are distinguishable
+	// Indistinct returns wether two objects separated by an angle θ and
+	// at respective distance r1 and r2 from the observer are indistinguishable
 	// given the current visibility conditions.
-	Distinct func(θ, r1, r2 float64) bool
+	Indistinct func(θ, r1, r2 float64) bool
 }
 
 // Behavior contains all the parameters relative to the rules followed by particles.

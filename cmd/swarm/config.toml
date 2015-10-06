@@ -10,6 +10,7 @@ BodyOffset        = 0.8
 MaxTurn           = 1.5
 SigmaNoise        = 0.25
 AttenuationLength = 3.0
+ContrastType      = "michelson"
 MaxAngle          = 0.01
 MaxContrast       = 0.1
 DomainType        = "finite"

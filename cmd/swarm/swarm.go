@@ -99,12 +99,20 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	s := &ellipswarm.Simulation{
 		Swarm: make([]ellipswarm.Particle, conf.SwarmSize),
 		Env: ellipswarm.Environment{
-			Dt:       conf.Dt,
-			Distinct: distinct(conf.AttenuationLength, conf.MaxAngle, conf.MaxContrast),
+			Dt: conf.Dt,
 		},
 		Behavior: ellipswarm.Behavior{
 			Attractivity: attractivity(conf.AttenuationLength, conf.MaxContrast, conf.BodyWidth),
 		},
+	}
+
+	switch conf.ContrastType {
+	case "michelson":
+		s.Env.Indistinct = indistinct(conf.AttenuationLength, conf.MaxAngle, conf.MaxContrast)
+	case "perfect":
+		s.Env.Indistinct = alwaysDistinct
+	default:
+		Fatal(fmt.Errorf("bad contrast type %q", conf.ContrastType))
 	}
 
 	switch conf.DomainType {
@@ -207,17 +215,22 @@ func periodicDist(size float64) func(a, b ellipswarm.Point) float64 {
 	}
 }
 
-// distinct determine if two objects are distinguishable given the
-// visibility (attenuation length) and using two thresholds:
+// indistinct determines if two objects are indistinguishable given the
+// current visibility (attenuation length) and using two thresholds:
 // one for the maximum angle between the edges of the two objects and
 // one for the maximum Michelson contrast at those edges.
-func distinct(λ, maxAngle, maxContrast float64) func(θ, r1, r2 float64) bool {
+func indistinct(λ, maxAngle, maxContrast float64) func(θ, r1, r2 float64) bool {
 	return func(θ, r1, r2 float64) bool {
 		v1 := 1 - math.Exp(-r1/λ)
 		v2 := 1 - math.Exp(-r2/λ)
 		c := math.Abs(v1-v2) / (v1 + v2)
 		return math.Abs(θ) < maxAngle && c < maxContrast
 	}
+}
+
+// alwaysDistinct acts as if two nearby objects were always distinguishable.
+func alwaysDistinct(θ, r1, r2 float64) bool {
+	return false
 }
 
 // attractivity returns a reasonable attractivity function.

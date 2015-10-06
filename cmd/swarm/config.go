@@ -23,6 +23,7 @@ type Config struct {
 
 	// Visibility and merging of look-alike objects parameters
 	AttenuationLength float64 // unit: body length
+	ContrastType      string  // possible values: michelson, perfect
 	MaxAngle          float64 // unit: rad
 	MaxContrast       float64 // unit: 1
 
@@ -46,6 +47,7 @@ var DefaultConf = &Config{
 	MaxTurn:           1.5,
 	SigmaNoise:        0.25,
 	AttenuationLength: 3.0,
+	ContrastType:      "michelson",
 	MaxAngle:          0.01,
 	MaxContrast:       0.1,
 	DomainType:        "finite",

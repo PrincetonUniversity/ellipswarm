@@ -293,7 +293,7 @@ func (p *Particle) Merge(s *Simulation) {
 			ψ := math.Abs(diffAngle(θ, φ))
 			r1 := math.Hypot(u[1].X-p.Pos.X, u[1].Y-p.Pos.Y)
 			r2 := math.Hypot(v[0].X-p.Pos.X, v[0].Y-p.Pos.Y)
-			if s.Env.Distinct(ψ, r1, r2) {
+			if s.Env.Indistinct(ψ, r1, r2) {
 				u[1] = v[1]
 				continue
 			}
