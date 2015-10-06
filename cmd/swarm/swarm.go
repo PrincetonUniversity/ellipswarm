@@ -234,6 +234,7 @@ func alwaysDistinct(θ, r1, r2 float64) bool {
 }
 
 // attractivity returns a reasonable attractivity function.
+// It contains alignment by taking into account the relative angle of the object.
 func attractivity(λ, maxContrast, bodyWidth float64) func(φ, r, θ float64) float64 {
 	return func(φ, r, θ float64) float64 {
 		// f returns the expected subtended angle of an ellipse
@@ -243,18 +244,21 @@ func attractivity(λ, maxContrast, bodyWidth float64) func(φ, r, θ float64) fl
 			r2, w2 := r*r, bodyWidth*bodyWidth
 			return math.Acos((r2 - w2 - 1) / math.Sqrt(1+r2*r2+w2*w2-2*w2+2*r2*(w2-1)*math.Cos(2*ψ)))
 		}
-		v := math.Exp(-r / λ)
-		c := v / (2 - v)
+		// v := math.Exp(-r / λ)
+		// c := v / (2 - v)
 		switch {
-		case c < maxContrast: // max detection distance
-			return 0
+		// case c < maxContrast: // max detection distance
+		// 	return 0
 		case r < 1: // short-range repulsion
 			return r - 1
-		case φ > f(r, math.Pi/2): // scared by large blobs
-			return -1
-		case r > 4: // long-distance attraction
-			return 1
+			// case φ > f(r, math.Pi/2): // scared by large blobs
+			// 	return -1
+			// case math.Abs(θ) < math.Pi/2: // attracted by objects in front moving radially
+			// 	return math.Exp(f(r, 0)/φ) * 0.01
+			// case math.Abs(θ) >= math.Pi/2: // repulsed by objects behind moving radially
+			// 	return -math.Exp(f(r, 0)/φ) * 0.01
 		}
-		return 0
+		// return 0
+		return (2*φ - f(r, 0)) / (f(r, math.Pi/2) - f(r, 0))
 	}
 }
