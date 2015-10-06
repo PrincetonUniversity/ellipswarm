@@ -45,10 +45,10 @@ var DefaultConf = &Config{
 	BodyOffset:        0.8,
 	MaxTurn:           1.5,
 	SigmaNoise:        0.25,
-	AttenuationLength: 2.0,
+	AttenuationLength: 3.0,
 	MaxAngle:          0.01,
 	MaxContrast:       0.1,
-	DomainType:        "infinite",
+	DomainType:        "finite",
 	DomainSize:        50,
 	MaxGroupDist:      4,
 }

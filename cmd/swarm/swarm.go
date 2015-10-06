@@ -103,7 +103,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 			Distinct: distinct(conf.AttenuationLength, conf.MaxAngle, conf.MaxContrast),
 		},
 		Behavior: ellipswarm.Behavior{
-			Attractivity: attractivity(conf.BodyWidth),
+			Attractivity: attractivity(conf.AttenuationLength, conf.MaxContrast, conf.BodyWidth),
 		},
 	}
 
@@ -220,23 +220,26 @@ func distinct(λ, maxAngle, maxContrast float64) func(θ, r1, r2 float64) bool {
 	}
 }
 
-// attractivity returns an attractivity function that's kind of arbitrary.
-// We can do better (FIXME).
-func attractivity(bodyWidth float64) func(φ, r, θ float64) float64 {
+// attractivity returns a reasonable attractivity function.
+func attractivity(λ, maxContrast, bodyWidth float64) func(φ, r, θ float64) float64 {
 	return func(φ, r, θ float64) float64 {
+		// f returns the expected subtended angle of an ellipse
+		// of width bodyWidth at distance r (found with Mathematica)
+		// ψ is the relative angle so ψ = π/2 represents the worst case
 		f := func(r, ψ float64) float64 {
-			if r < 1 {
-				return r - 1
-			}
 			r2, w2 := r*r, bodyWidth*bodyWidth
 			return math.Acos((r2 - w2 - 1) / math.Sqrt(1+r2*r2+w2*w2-2*w2+2*r2*(w2-1)*math.Cos(2*ψ)))
 		}
+		v := math.Exp(-r / λ)
+		c := v / (2 - v)
 		switch {
-		case r > 12: // max detection distance
+		case c < maxContrast: // max detection distance
 			return 0
+		case r < 1: // short-range repulsion
+			return r - 1
 		case φ > f(r, math.Pi/2): // scared by large blobs
 			return -1
-		case r > 6: // long-distance attraction
+		case r > 4: // long-distance attraction
 			return 1
 		}
 		return 0
