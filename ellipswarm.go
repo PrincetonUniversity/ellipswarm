@@ -18,7 +18,7 @@ type Environment struct {
 
 	// Dist returns the distance between two points. Coupled with Move,
 	// it can be used to create periodic boundary conditions.
-	Dist func(a, b Point) float64
+	Dist func(a, b Vec2) float64
 
 	// Indistinct returns wether two objects separated by an angle θ and
 	// at respective distance r1 and r2 from the observer are indistinguishable

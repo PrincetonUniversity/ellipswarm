@@ -2,18 +2,17 @@ package ellipswarm
 
 import (
 	"math"
-	"math/rand"
 	"sort"
 )
 
-// A Point is a simple 2D vector.
-type Point struct {
+// A Vec2 is a simple 2D vector.
+type Vec2 struct {
 	X float64
 	Y float64
 }
 
 // A Segment is a piece of the visual footprint of a particle to another.
-type Segment [2]Point
+type Segment [2]Vec2
 
 // An Ellipse contains the parameters of an ellipsoidal particle shape.
 type Ellipse struct {
@@ -23,23 +22,27 @@ type Ellipse struct {
 
 // State contains the full state of a particle.
 type State struct {
-	Pos Point   // position in body length units
-	Dir float64 // direction in radians
+	Pos Vec2 // position in body length units
+	Vel Vec2 // direction in radians
 }
 
 // Parameters contains the parameters of a particle.
 type Parameters struct {
-	Speed      float64 // speed in body length per unit time
-	Body       Ellipse // parameters of ellipsoidal body shape
-	MaxTurn    float64 // maximum turning rate in radians per unit time
-	SigmaNoise float64 // standard deviation of random noise per unit time
+	Body  Ellipse // parameters of ellipsoidal body shape
+	Mass  float64 // mass of the particle
+	Alpha float64 // advection coefficient
+	Beta  float64 // drag coefficient
+	Cr    float64 // coefficient of repulsion
+	Lr    float64 // characteristic distance of repulsion
+	Ca    float64 // coefficient of attraction
+	La    float64 // characteristic distance of attraction
 }
 
 // Memory contains the memory of a particle.
 type Memory struct {
 	FOV          []Segment // field of view as list of visible segments
 	Attractivity []float64 // attractivity of visible segments
-	State        []State   // state of neighbors
+	State        State     // past state
 }
 
 // Style contains the display properties of a particle.
@@ -58,7 +61,6 @@ type Particle struct {
 // Detect computes the visual footprint of the neighbors of a particle.
 func (p *Particle) Detect(s *Simulation) {
 	p.FOV = make([]Segment, 0, len(p.FOV))
-	// p.Memory.State = make([]State, 0, len(p.Memory.State))
 	for _, q := range s.Swarm {
 		// skip self
 		d := s.Env.Dist(p.Pos, q.Pos)
@@ -66,15 +68,10 @@ func (p *Particle) Detect(s *Simulation) {
 			continue
 		}
 
-		// save state of close neighbors
-		// if d < zoa {
-		// 	p.Memory.State = append(p.Memory.State, q.State)
-		// }
-
 		// compute center of ellipse
-		φ, b := q.Dir, q.Body.Offset/2
+		φ, b := math.Atan2(q.Vel.Y, q.Vel.X), q.Body.Offset/2
 		sinφ, cosφ := math.Sincos(φ)
-		c := Point{X: q.Pos.X - b*cosφ, Y: q.Pos.Y - b*sinφ}
+		c := Vec2{X: q.Pos.X - b*cosφ, Y: q.Pos.Y - b*sinφ}
 
 		// compute relative position to center in polar coordinates
 		r := math.Hypot(c.X-p.Pos.X, c.Y-p.Pos.Y)
@@ -228,8 +225,8 @@ func (p *Particle) visibleChunks(u, v Segment) Chunks {
 // Intersect returns the solution of the equation x*s=y*t
 // where s and t are treated as vectors. Might contain NaNs or Infs.
 func (s Segment) Intersect(t Segment) (x, y float64) {
-	u := Point{s[1].X - s[0].X, s[1].Y - s[0].Y}
-	v := Point{t[1].X - t[0].X, t[1].Y - t[0].Y}
+	u := Vec2{s[1].X - s[0].X, s[1].Y - s[0].Y}
+	v := Vec2{t[1].X - t[0].X, t[1].Y - t[0].Y}
 	det := u.Y*v.X - u.X*v.Y
 	x = ((t[0].Y-s[0].Y)*v.X - (t[0].X-s[0].X)*v.Y) / det
 	y = (u.X*(t[0].Y-s[0].Y) - u.Y*(t[0].X-s[0].X)) / det
@@ -237,8 +234,8 @@ func (s Segment) Intersect(t Segment) (x, y float64) {
 }
 
 // Point returns a point at position (1-x) * s[0] + x * s[1].
-func (s Segment) Point(x float64) Point {
-	return Point{
+func (s Segment) Point(x float64) Vec2 {
+	return Vec2{
 		X: (1-x)*s[0].X + x*s[1].X,
 		Y: (1-x)*s[0].Y + x*s[1].Y,
 	}
@@ -247,7 +244,7 @@ func (s Segment) Point(x float64) Point {
 // ByAngle is a wrapper to sort segments by angle.
 type ByAngle struct {
 	s *[]Segment
-	p Point
+	p Vec2
 }
 
 // Len returns the length of the slice.
@@ -303,73 +300,51 @@ func (p *Particle) Merge(s *Simulation) {
 		p.FOV = append(ns, u)
 	}
 
-	// compute attractivity
-	p.Attractivity = make([]float64, len(p.FOV))
-	for i, v := range p.FOV {
-		m := Point{(v[0].X + v[1].X) / 2, (v[0].Y + v[1].Y) / 2}
-		ψ1 := math.Atan2(v[0].Y-p.Pos.Y, v[0].X-p.Pos.X)
-		ψ2 := math.Atan2(v[1].Y-p.Pos.Y, v[1].X-p.Pos.X)
-
-		r := math.Hypot(m.X-p.Pos.X, m.Y-p.Pos.Y)         // relative distance
-		θ := math.Atan2(m.Y-p.Pos.Y, m.X-p.Pos.X) - p.Dir // relative direction
-		φ := math.Abs(diffAngle(ψ1, ψ2))                  // subtended angle
-
-		p.Attractivity[i] = s.Behavior.Attractivity(φ, r, θ)
-	}
+	// save last state
+	p.Memory.State = p.State
 }
 
 // Update updates the state of a particle based on its neighborhood.
+// TODO: add noise (potentially: environment noise + particle noise)
+// TODO: use subtended angle as a proxy for distance
 func (p *Particle) Update(s *Simulation) {
-	// choose new dir based on neighbors
-	var acc Point
-	for i, s := range p.FOV {
-		m := Point{(s[0].X + s[1].X) / 2, (s[0].Y + s[1].Y) / 2}
-		θ := math.Atan2(m.Y-p.Pos.Y, m.X-p.Pos.X) // relative direction
-
-		// accumulate attraction or repulsion
-		x := p.Attractivity[i]
-		sin, cos := math.Sincos(θ)
-		acc.X += x * cos
-		acc.Y += x * sin
+	gradU := p.gradMorsePotential(s)
+	f := func(v Vec2) Vec2 {
+		n := math.Hypot(v.X, v.Y)
+		k := p.Alpha - p.Beta*n*n
+		return Vec2{(k*v.X - gradU.X) / p.Mass, (k*v.Y - gradU.Y) / p.Mass}
 	}
-
-	// align with close neighbors
-	// for _, s := range p.Memory.State {
-	// 	sin, cos := math.Sincos(s.Dir)
-	// 	const strength = 0.1
-	// 	acc.X += strength * cos
-	// 	acc.Y += strength * sin
-	// }
-
-	// desired direction
-	dir := math.Atan2(acc.Y, acc.X)
-	if (acc.X == 0 && acc.Y == 0) || math.IsNaN(dir) {
-		dir = p.Dir
-	}
-
-	// add noise
-	dir += s.Env.Dt * p.SigmaNoise * rand.NormFloat64()
-
-	// limit turn
-	a, max := diffAngle(dir, p.Dir), s.Env.Dt*p.MaxTurn
-	switch {
-	case a > max:
-		dir = p.Dir + max
-	case a < -max:
-		dir = p.Dir - max
-	}
-
-	// move
-	sin, cos := math.Sincos(dir)
-	old := p.State
-	p.Pos.X += s.Env.Dt * p.Speed * cos
-	p.Pos.Y += s.Env.Dt * p.Speed * sin
-	p.Dir = dir
-	p.State = s.Env.Move(old, p.State)
+	p.Pos = Vec2{p.Pos.X + s.Env.Dt*p.Vel.X, p.Pos.Y + s.Env.Dt*p.Vel.Y}
+	p.Vel = integrateRK4(f, p.Vel, s.Env.Dt)
+	p.State = s.Env.Move(p.Memory.State, p.State)
 }
 
 // diffAngle returns the difference between two angles in radians.
 // θ and φ must be between -pi and pi. The result is between -pi and pi.
 func diffAngle(θ, φ float64) float64 {
 	return math.Mod(θ-φ+3*math.Pi, 2*math.Pi) - math.Pi
+}
+
+// integrateRK4 performs one step of time integration of f.
+func integrateRK4(f func(Vec2) Vec2, x Vec2, dt float64) Vec2 {
+	k1 := f(x)
+	k2 := f(Vec2{x.X + dt/2*k1.X, x.Y + dt/2*k1.Y})
+	k3 := f(Vec2{x.X + dt/2*k2.X, x.Y + dt/2*k2.Y})
+	k4 := f(Vec2{x.X + dt*k3.X, x.Y + dt*k3.Y})
+	return Vec2{x.X + dt*(k1.X+2*k2.X+2*k3.X+k4.X)/6, x.Y + dt*(k1.Y+2*k2.Y+2*k3.Y+k4.Y)/6}
+}
+
+// gradMorsePotential computes the gradient of the Morse potential around p.
+func (p Particle) gradMorsePotential(s *Simulation) Vec2 {
+	var gradU Vec2
+	for _, q := range s.Swarm {
+		d := s.Env.Dist(p.Pos, q.Memory.State.Pos)
+		if d == 0 {
+			continue
+		}
+		U := (p.Cr*math.Exp(-d/p.Lr)/p.Lr - p.Ca*math.Exp(-d/p.La)/p.La) / d
+		gradU.X += U * (q.Memory.State.Pos.X - p.Pos.X)
+		gradU.Y += U * (q.Memory.State.Pos.Y - p.Pos.Y)
+	}
+	return gradU
 }

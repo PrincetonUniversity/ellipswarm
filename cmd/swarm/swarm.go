@@ -135,12 +135,17 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
 		s.Swarm[i].Pos.X = 0.5*conf.DomainSize + r*cos
 		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin
-		s.Swarm[i].Dir = 2*math.Pi*rand.Float64() - math.Pi
-		s.Swarm[i].Speed = conf.Speed
+		s.Swarm[i].Vel.X = rand.NormFloat64()
+		s.Swarm[i].Vel.Y = rand.NormFloat64()
 		s.Swarm[i].Body.Width = conf.BodyWidth
 		s.Swarm[i].Body.Offset = conf.BodyOffset
-		s.Swarm[i].MaxTurn = conf.MaxTurn
-		s.Swarm[i].SigmaNoise = conf.SigmaNoise
+		s.Swarm[i].Mass = conf.Mass
+		s.Swarm[i].Alpha = conf.Alpha
+		s.Swarm[i].Beta = conf.Beta
+		s.Swarm[i].Cr = conf.Cr
+		s.Swarm[i].Lr = conf.Lr
+		s.Swarm[i].Ca = conf.Ca
+		s.Swarm[i].La = conf.La
 		s.Swarm[i].Color = [4]float32{1, 1, 0, 1}
 	}
 
@@ -156,22 +161,21 @@ func move(old, new ellipswarm.State) ellipswarm.State {
 // reflectiveMove is a move function that works in a square with reflective boundary conditions.
 func reflectiveMove(size float64) func(old, new ellipswarm.State) ellipswarm.State {
 	return func(old, new ellipswarm.State) ellipswarm.State {
-		sin, cos := math.Sincos(new.Dir)
-		if new.Pos.X < 0 {
+		switch {
+		case new.Pos.X < 0:
 			new.Pos.X += 2 * -new.Pos.X
-			new.Dir = math.Atan2(sin, -cos)
-		}
-		if new.Pos.X > size {
+			new.Vel.X = -new.Vel.X
+		case new.Pos.X > size:
 			new.Pos.X -= 2 * (new.Pos.X - size)
-			new.Dir = math.Atan2(sin, -cos)
+			new.Vel.X = -new.Vel.X
 		}
-		if new.Pos.Y < 0 {
+		switch {
+		case new.Pos.Y < 0:
 			new.Pos.Y += 2 * -new.Pos.Y
-			new.Dir = math.Atan2(-sin, cos)
-		}
-		if new.Pos.Y > size {
+			new.Vel.Y = -new.Vel.Y
+		case new.Pos.Y > size:
 			new.Pos.Y -= 2 * (new.Pos.Y - size)
-			new.Dir = math.Atan2(-sin, cos)
+			new.Vel.Y = -new.Vel.Y
 		}
 		return new
 	}
@@ -193,13 +197,13 @@ func periodicMove(size float64) func(old, new ellipswarm.State) ellipswarm.State
 }
 
 // dist is the trivial distance function.
-func dist(a, b ellipswarm.Point) float64 {
+func dist(a, b ellipswarm.Vec2) float64 {
 	return math.Hypot(a.X-b.X, a.Y-b.Y)
 }
 
 // periodicDist is a distance that works in a square with periodic boundary conditions.
-func periodicDist(size float64) func(a, b ellipswarm.Point) float64 {
-	return func(a, b ellipswarm.Point) float64 {
+func periodicDist(size float64) func(a, b ellipswarm.Vec2) float64 {
+	return func(a, b ellipswarm.Vec2) float64 {
 		x, y := b.X-a.X, b.Y-a.Y
 		if 2*x <= -size {
 			x += size

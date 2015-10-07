@@ -24,7 +24,7 @@ type Display struct {
 	}
 	attr struct {
 		pos     uint32
-		dir     uint32
+		vel     uint32
 		width   uint32
 		offset  uint32
 		color   uint32
@@ -264,7 +264,7 @@ func NewDisplay(conf *Config) (*Display, error) {
 	d.uni.pos = gl.GetUniformLocation(d.prog.fov, gl.Str("pos\x00"))
 
 	// attribute locations are specified in the shaders with layout(location=n)
-	d.attr = struct{ pos, dir, width, offset, color, fpos, attract uint32 }{0, 1, 2, 3, 4, 5, 6}
+	d.attr = struct{ pos, vel, width, offset, color, fpos, attract uint32 }{0, 1, 2, 3, 4, 5, 6}
 
 	// generate a single VAO for both programs as their interfaces match
 	gl.GenVertexArrays(1, &d.vao)
@@ -282,8 +282,8 @@ func NewDisplay(conf *Config) (*Display, error) {
 	gl.EnableVertexAttribArray(d.attr.pos)
 	gl.VertexAttribPointer(d.attr.pos, 2, gl.DOUBLE, false, n, unsafe.Pointer(unsafe.Offsetof(ellipswarm.Particle{}.Pos)))
 
-	gl.EnableVertexAttribArray(d.attr.dir)
-	gl.VertexAttribPointer(d.attr.dir, 1, gl.DOUBLE, false, n, unsafe.Pointer(unsafe.Offsetof(ellipswarm.Particle{}.Dir)))
+	gl.EnableVertexAttribArray(d.attr.vel)
+	gl.VertexAttribPointer(d.attr.vel, 2, gl.DOUBLE, false, n, unsafe.Pointer(unsafe.Offsetof(ellipswarm.Particle{}.Vel)))
 
 	gl.EnableVertexAttribArray(d.attr.width)
 	gl.VertexAttribPointer(d.attr.width, 1, gl.DOUBLE, false, n, unsafe.Pointer(unsafe.Offsetof(ellipswarm.Particle{}.Body)+unsafe.Offsetof(ellipswarm.Ellipse{}.Width)))
@@ -299,7 +299,7 @@ func NewDisplay(conf *Config) (*Display, error) {
 	gl.BufferData(gl.ARRAY_BUFFER, 2*N*int(unsafe.Sizeof(ellipswarm.Segment{})), nil, gl.STREAM_DRAW)
 
 	gl.EnableVertexAttribArray(d.attr.fpos)
-	gl.VertexAttribPointer(d.attr.fpos, 2, gl.DOUBLE, false, int32(unsafe.Sizeof(ellipswarm.Point{})), nil)
+	gl.VertexAttribPointer(d.attr.fpos, 2, gl.DOUBLE, false, int32(unsafe.Sizeof(ellipswarm.Vec2{})), nil)
 
 	gl.GenBuffers(1, &d.buf.attract)
 	gl.BindBuffer(gl.ARRAY_BUFFER, d.buf.attract)
