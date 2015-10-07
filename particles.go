@@ -310,9 +310,9 @@ func (p *Particle) Merge(s *Simulation) {
 		ψ1 := math.Atan2(v[0].Y-p.Pos.Y, v[0].X-p.Pos.X)
 		ψ2 := math.Atan2(v[1].Y-p.Pos.Y, v[1].X-p.Pos.X)
 
-		r := math.Hypot(m.X-p.Pos.X, m.Y-p.Pos.Y) // relative distance
-		θ := math.Atan2(m.Y-p.Pos.Y, m.X-p.Pos.X) // relative direction
-		φ := diffAngle(ψ1, ψ2)                    // subtended angle
+		r := math.Hypot(m.X-p.Pos.X, m.Y-p.Pos.Y)         // relative distance
+		θ := math.Atan2(m.Y-p.Pos.Y, m.X-p.Pos.X) - p.Dir // relative direction
+		φ := math.Abs(diffAngle(ψ1, ψ2))                  // subtended angle
 
 		p.Attractivity[i] = s.Behavior.Attractivity(φ, r, θ)
 	}
