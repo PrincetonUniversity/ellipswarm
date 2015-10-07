@@ -71,8 +71,39 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 	if err != nil {
 		return err
 	}
+	w.MakeContextCurrent()
 
+	// set background color and enable alpha blending
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	gl.ClearColor(0, 0, 0, 1)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	w.SwapBuffers()
+
+	// initialize OpenGL objects
+	d, err := NewDisplay(conf)
+	if err != nil {
+		return err
+	}
+
+	// handle scrolling zoom
+	vp := Viewport{{0, 0}, {float32(conf.DomainSize), float32(conf.DomainSize)}}
 	var focal int // index of the particle whose field of view is displayed
+	w.SetScrollCallback(func(w *glfw.Window, xo, yo float64) {
+		xc, yc := w.GetCursorPos()
+		xs, ys := w.GetSize()
+		x, y := float32(xc)/float32(xs), (float32(ys)-float32(yc))/float32(ys)
+		dx, dy := vp[1].X-vp[0].X, vp[1].Y-vp[0].Y
+		z := 0.05 * float32(yo)
+		vp[0].X += z * -(x * dx)
+		vp[0].Y += z * -(y * dy)
+		vp[1].X += z * (1 - x) * dx
+		vp[1].Y += z * (1 - y) * dy
+		d.UpdateViewport(vp)
+		d.Draw(s, focal, vp)
+		w.SwapBuffers()
+	})
+
 	var quit, pause, step bool
 	w.SetKeyCallback(func(w *glfw.Window, key glfw.Key, _ int, action glfw.Action, mod glfw.ModifierKey) {
 		if key == glfw.KeyEscape && action == glfw.Press {
@@ -96,38 +127,12 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 			}
 			focal = (conf.SwarmSize+focal+2)%(conf.SwarmSize+1) - 1
 		}
-	})
-
-	w.MakeContextCurrent()
-
-	// set background color and enable alpha blending
-	gl.Enable(gl.BLEND)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	gl.ClearColor(0, 0, 0, 1)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	w.SwapBuffers()
-
-	// initialize OpenGL objects
-	d, err := NewDisplay(conf)
-	if err != nil {
-		return err
-	}
-
-	// handle scrolling zoom
-	vp := Viewport{{0, 0}, {float32(conf.DomainSize), float32(conf.DomainSize)}}
-	w.SetScrollCallback(func(w *glfw.Window, xo, yo float64) {
-		xc, yc := w.GetCursorPos()
-		xs, ys := w.GetSize()
-		x, y := float32(xc)/float32(xs), (float32(ys)-float32(yc))/float32(ys)
-		dx, dy := vp[1].X-vp[0].X, vp[1].Y-vp[0].Y
-		z := 0.05 * float32(yo)
-		vp[0].X += z * -(x * dx)
-		vp[0].Y += z * -(y * dy)
-		vp[1].X += z * (1 - x) * dx
-		vp[1].Y += z * (1 - y) * dy
-		d.UpdateViewport(vp)
-		d.Draw(s, focal, vp)
-		w.SwapBuffers()
+		if key == glfw.KeyR && action == glfw.Press {
+			vp = Viewport{{0, 0}, {float32(conf.DomainSize), float32(conf.DomainSize)}}
+			d.UpdateViewport(vp)
+			d.Draw(s, focal, vp)
+			w.SwapBuffers()
+		}
 	})
 
 	for !(quit || w.ShouldClose()) {
