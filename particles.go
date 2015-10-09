@@ -60,9 +60,9 @@ func (p *Particle) Detect(s *Simulation) {
 	p.FOV = make([]Segment, 0, len(p.FOV))
 	// p.Memory.State = make([]State, 0, len(p.Memory.State))
 	for _, q := range s.Swarm {
-		// skip self
+		// skip self or particles that are too distant
 		d := s.Env.Dist(p.Pos, q.Pos)
-		if d == 0 {
+		if d == 0 || s.Env.Indistinct(0, d, math.Inf(1)) {
 			continue
 		}
 
