@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -10,7 +12,8 @@ type Config struct {
 	// or the empty string for an interactive OpenGL simulation.
 	Output string
 
-	SwarmSize int     // number of particles
+	SwarmSize  int // number of particles
+	Replicates int // number of replicates
 
 	// Particles parameters
 	BodyWidth  float64 // unit: body length
@@ -29,14 +32,15 @@ type Config struct {
 // DefaultConfig are the default parameters.
 var DefaultConf = &Config{
 	Output:            "",
-	SwarmSize:         75,
+	SwarmSize:         300,
+	Replicates:        100,
 	BodyWidth:         0.125,
 	BodyOffset:        0.8,
-	AttenuationLength: 3.0,
+	AttenuationLength: math.Inf(1),
 	ContrastType:      "michelson",
 	MaxAngle:          0.01,
 	MaxContrast:       0.1,
-	DomainSize:        50,
+	DomainSize:        30,
 }
 
 // ParseConfig parses the TOML config file whose path is provided.

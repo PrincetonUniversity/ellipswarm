@@ -91,13 +91,14 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		Fatal(fmt.Errorf("bad contrast type %q", conf.ContrastType))
 	}
 
-	R := 2 * math.Sqrt(float64(conf.SwarmSize)) // estimated radius of swarm
+	R := 0.4 * conf.DomainSize
+	const golden = 0.618
 	for i := range s.Swarm {
 		r := R * math.Sqrt(rand.Float64())
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
 		s.Swarm[i].Pos.X = 0.5*conf.DomainSize + r*cos
-		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin
-		s.Swarm[i].Dir = 2*math.Pi*rand.Float64() - math.Pi
+		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin*golden
+		s.Swarm[i].Dir = 0.5 * rand.NormFloat64()
 		s.Swarm[i].Body.Width = conf.BodyWidth
 		s.Swarm[i].Body.Offset = conf.BodyOffset
 		s.Swarm[i].Color = [4]float32{1, 1, 0, 1}
@@ -105,10 +106,38 @@ func setup(conf *Config) *ellipswarm.Simulation {
 
 	for i := range s.Swarm {
 		s.Swarm[i].Detect(s)
-		// s.Swarm[i].Merge(s)
+	}
+
+	pi := personalInfo(s)
+	for i := range s.Swarm {
+		// multiply by 2 because pi is rarely greater than 0.5
+		s.Swarm[i].Color[1] = float32(pi[i]) * 2
 	}
 
 	return s
+}
+
+// diffAngle returns the difference between two angles in radians.
+// θ and φ must be between -pi and pi. The result is between -pi and pi.
+func diffAngle(θ, φ float64) float64 {
+	return math.Mod(θ-φ+3*math.Pi, 2*math.Pi) - math.Pi
+}
+
+// personalInfo returns for each particle the fraction
+// of its field of view reaching outside the swarm.
+func personalInfo(s *ellipswarm.Simulation) []float64 {
+	pi := make([]float64, len(s.Swarm))
+	for i, p := range s.Swarm {
+		var c float64
+		for _, v := range s.Swarm[i].FOV {
+			θ := math.Atan2(v[0].Y-p.Pos.Y, v[0].X-p.Pos.X)
+			φ := math.Atan2(v[1].Y-p.Pos.Y, v[1].X-p.Pos.X)
+			c += math.Abs(diffAngle(θ, φ))
+		}
+		c /= 2 * math.Pi
+		pi[i] = 1 - c
+	}
+	return pi
 }
 
 // dist is the trivial distance function.

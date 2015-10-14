@@ -7,7 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/PrincetonUniversity/ellipswarm"
-	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/gl/v3.2-core/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
 )
 
@@ -50,12 +50,12 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 	}
 	defer glfw.Terminate()
 
-	// glfw.WindowHint(glfw.Samples, 4)
+	glfw.WindowHint(glfw.Samples, 4)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 2)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile) 
+	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 
 	// create OpenGL window
 	const (
@@ -68,13 +68,11 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 		return err
 	}
 	w.MakeContextCurrent()
-	
-	println("init opengl")
+
 	if err := gl.Init(); err != nil {
 		return err
 	}
-	println("init success")
-	
+
 	// set background color and enable alpha blending
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
@@ -113,18 +111,27 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 		}
 		if key == glfw.KeyTab && action == glfw.Press {
 			// cycle through particles, then disable (focal = -1)
+			if focal > -1 {
+				s.Swarm[focal].Color[2] = 0
+			}
 			if mod == glfw.ModShift {
 				focal--
 			} else {
 				focal++
 			}
 			focal = (conf.SwarmSize+focal+2)%(conf.SwarmSize+1) - 1
+			if focal > -1 {
+				s.Swarm[focal].Color[2] = 1
+			}
 		}
 		if key == glfw.KeyR && action == glfw.Press {
 			vp = Viewport{{0, 0}, {float32(conf.DomainSize), float32(conf.DomainSize)}}
 			d.UpdateViewport(vp)
 			d.Draw(s, focal, vp)
 			w.SwapBuffers()
+		}
+		if key == glfw.KeyS && action == glfw.Press {
+			fmt.Printf("Focal individual: %d\n", focal)
 		}
 	})
 

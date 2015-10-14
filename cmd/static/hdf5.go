@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,14 +12,8 @@ import (
 	"github.com/sbinet/go-hdf5"
 )
 
-// A DataPoint is what is recorded in the HDF5 file for each particle at each step.
-// This structure is mapped to a compound datatype in HDF5 so member names are important.
-type DataPoint struct {
-	Pos ellipswarm.Point // position
-	Dir float64          // direction (angle in rad)
-}
-
-// RunHDF5 runs a simulation and saves data to an HDF5 file.
+// RunHDF5 generates random static swarms, runs various computations
+// on them and saves data to an HDF5 file.
 func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 	if err := os.MkdirAll(filepath.Dir(conf.Output), 0755); err != nil {
 		return err
@@ -34,22 +29,73 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 		return err
 	}
 
-	par, err := NewDataset(file, "particles", DataPoint{}, []int{conf.SwarmSize})
+	px, err := NewDataset(file, "px", 0.0, []int{conf.Replicates, conf.SwarmSize})
 	if err != nil {
 		return err
 	}
-	defer checkClose(&err, par)
+	defer checkClose(&err, px)
 
-	p := make([]DataPoint, len(sim.Swarm))
-	for i, v := range sim.Swarm {
-		p[i].Pos = v.Pos
-		p[i].Dir = v.Dir
-	}
-
-	if err := par.Dataset.WriteSubset(&p, par.MemSpace, par.DataSpace); err != nil {
+	py, err := NewDataset(file, "py", 0.0, []int{conf.Replicates, conf.SwarmSize})
+	if err != nil {
 		return err
 	}
+	defer checkClose(&err, py)
 
+	dir, err := NewDataset(file, "dir", 0.0, []int{conf.Replicates, conf.SwarmSize})
+	if err != nil {
+		return err
+	}
+	defer checkClose(&err, dir)
+
+	perso, err := NewDataset(file, "personal", 0.0, []int{conf.Replicates, conf.SwarmSize})
+	if err != nil {
+		return err
+	}
+	defer checkClose(&err, perso)
+
+	for k := uint(0); k < uint(conf.Replicates); k++ {
+		// show progress as percentage
+		fmt.Printf("\r% 3d%%", 100*k/uint(conf.Replicates))
+
+		if err := px.DataSpace.SetOffset([]uint{k, 0}); err != nil {
+			return err
+		}
+		if err := py.DataSpace.SetOffset([]uint{k, 0}); err != nil {
+			return err
+		}
+		if err := dir.DataSpace.SetOffset([]uint{k, 0}); err != nil {
+			return err
+		}
+		if err := perso.DataSpace.SetOffset([]uint{k, 0}); err != nil {
+			return err
+		}
+
+		pxd := make([]float64, len(sim.Swarm))
+		pyd := make([]float64, len(sim.Swarm))
+		pdd := make([]float64, len(sim.Swarm))
+		for i, v := range sim.Swarm {
+			pxd[i] = v.Pos.X
+			pyd[i] = v.Pos.Y
+			pdd[i] = v.Dir
+		}
+		pi := personalInfo(sim)
+
+		if err := px.Dataset.WriteSubset(&pxd, px.MemSpace, px.DataSpace); err != nil {
+			return err
+		}
+		if err := py.Dataset.WriteSubset(&pyd, py.MemSpace, py.DataSpace); err != nil {
+			return err
+		}
+		if err := dir.Dataset.WriteSubset(&pdd, dir.MemSpace, dir.DataSpace); err != nil {
+			return err
+		}
+		if err := perso.Dataset.WriteSubset(&pi, perso.MemSpace, perso.DataSpace); err != nil {
+			return err
+		}
+
+		sim = setup(conf)
+	}
+	fmt.Printf("\r100%%\n")
 	return nil
 }
 

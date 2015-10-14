@@ -1,11 +1,12 @@
 # Example config file.
 
 #Output            = "test.h5"
-SwarmSize         = 75
+SwarmSize         = 300
+Replicates        = 100
 BodyWidth         = 0.125
 BodyOffset        = 0.8
-AttenuationLength = 3.0
+AttenuationLength = 1000.0
 ContrastType      = "michelson"
 MaxAngle          = 0.01
 MaxContrast       = 0.1
-DomainSize        = 50.0
+DomainSize        = 30.0
