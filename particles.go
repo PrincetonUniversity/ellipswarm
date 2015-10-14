@@ -146,7 +146,7 @@ func (a Chunks) Intersect(b Chunks) Chunks {
 				out = append(out, Chunk{Start: v.Start, Stop: u.Stop})
 			case u.Start <= v.Start && u.Stop >= v.Stop:
 				out = append(out, v)
-			case u.Start >= v.Start && u.Stop >= v.Stop && u.Stop <= v.Start:
+			case u.Start >= v.Start && u.Stop >= v.Stop && u.Start <= v.Stop:
 				out = append(out, Chunk{Start: u.Start, Stop: v.Stop})
 			case u.Start >= v.Start && u.Stop <= v.Stop:
 				out = append(out, u)
@@ -177,10 +177,10 @@ func (p *Particle) visibleChunks(u, v Segment) Chunks {
 	// v0c means that v[0] is inside the cone formed by p and u
 	// v0b means that v[0] is behind u (as seen from p)
 	cross := x0 > 0 && x0 < 1 && y0 > 0 && y0 < 1
-	v0c, v0b := x1 > 0 && x1 < 1, y1 > 0 && y1 < 1
-	v1c, v1b := x2 > 0 && x2 < 1, y2 > 0 && y2 < 1
-	u0c, u0b := x3 > 0 && x3 < 1, y3 > 0 && y3 < 1
-	u1c, u1b := x4 > 0 && x4 < 1, y4 > 0 && y4 < 1
+	v0c, v0b := x1 > 0 && x1 < 1 && y1 > 0, y1 > 0 && y1 < 1
+	v1c, v1b := x2 > 0 && x2 < 1 && y2 > 0, y2 > 0 && y2 < 1
+	u0c, u0b := x3 > 0 && x3 < 1 && y3 > 0, y3 > 0 && y3 < 1
+	u1c, u1b := x4 > 0 && x4 < 1 && y4 > 0, y4 > 0 && y4 < 1
 
 	switch {
 	// u occludes v totally
@@ -204,19 +204,19 @@ func (p *Particle) visibleChunks(u, v Segment) Chunks {
 		return Chunks{Chunk{0, x4}, Chunk{y0, 1}}
 
 	// u splits v
-	case u0c && y3 > 1 && u1c && y4 > 1 && x3 < x4:
+	case u0c && !u0b && u1c && !u1b && x3 < x4:
 		return Chunks{Chunk{0, x3}, Chunk{x4, 1}}
-	case u0c && y3 > 1 && u1c && y4 > 1 && x3 >= x4:
+	case u0c && !u0b && u1c && !u1b && x3 >= x4:
 		return Chunks{Chunk{0, x4}, Chunk{x3, 1}}
 
 	// one edge of v occluded
-	case u0c && y3 > 1 && !(u1c && y4 > 1) && v1c:
+	case v1c && v1b && !v0c && u0c:
 		return Chunks{Chunk{0, x3}}
-	case u0c && y3 > 1 && !(u1c && y4 > 1) && v0c:
+	case v0c && v0b && !v1c && u0c:
 		return Chunks{Chunk{x3, 1}}
-	case !(u0c && y3 > 1) && u1c && y4 > 1 && v1c:
+	case v1c && v1b && !v0c && u1c:
 		return Chunks{Chunk{0, x4}}
-	case !(u0c && y3 > 1) && u1c && y4 > 1 && v0c:
+	case v0c && v0b && !v1c && u1c:
 		return Chunks{Chunk{x4, 1}}
 
 	// no occlusion
