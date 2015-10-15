@@ -1,8 +1,9 @@
 # Example config file.
 
+Output            = "/Users/sleblanc/Desktop/Static/full.h5"
 #Output            = "test.h5"
 SwarmSize         = 300
-Replicates        = 100
+Replicates        = 10
 BodyWidth         = 0.125
 BodyOffset        = 0.8
 AttenuationLength = 1000.0

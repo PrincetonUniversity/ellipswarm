@@ -38,6 +38,7 @@ type Parameters struct {
 // Memory contains the memory of a particle.
 type Memory struct {
 	FOV          []Segment // field of view as list of visible segments
+	ID           []int     // id of particle for each visible segment
 	Attractivity []float64 // attractivity of visible segments
 	State        []State   // state of neighbors
 }
@@ -59,7 +60,7 @@ type Particle struct {
 func (p *Particle) Detect(s *Simulation) {
 	p.FOV = make([]Segment, 0, len(p.FOV))
 	// p.Memory.State = make([]State, 0, len(p.Memory.State))
-	for _, q := range s.Swarm {
+	for j, q := range s.Swarm {
 		// skip self or particles that are too distant
 		d := s.Env.Dist(p.Pos, q.Pos)
 		if d == 0 || s.Env.Indistinct(0, d, math.Inf(1)) {
@@ -106,12 +107,15 @@ func (p *Particle) Detect(s *Simulation) {
 		chunks := Chunks{Chunk{Start: 0, Stop: 1}}
 		if len(p.FOV) == 0 {
 			p.FOV = []Segment{u}
+			p.ID = []int{j}
 		} else {
 			ns := make([]Segment, 0, len(p.FOV)+1)
-			for _, v := range p.FOV {
+			ni := make([]int, 0, len(p.FOV)+1)
+			for k, v := range p.FOV {
 				// add chunks of v that are not occluded by u
 				for _, c := range p.visibleChunks(u, v) {
 					ns = append(ns, Segment{v.Point(c.Start), v.Point(c.Stop)})
+					ni = append(ni, p.ID[k])
 				}
 
 				// add chunks of u that are not occluded by v
@@ -119,8 +123,10 @@ func (p *Particle) Detect(s *Simulation) {
 			}
 			for _, c := range chunks {
 				ns = append(ns, Segment{u.Point(c.Start), u.Point(c.Stop)})
+				ni = append(ni, j)
 			}
 			p.FOV = ns
+			p.ID = ni
 		}
 	}
 }
@@ -286,18 +292,22 @@ func (p *Particle) Merge(s *Simulation) {
 	// merge
 	if len(p.FOV) > 0 {
 		ns := make([]Segment, 0, len(p.FOV))
+		ni := make([]int, 0, len(p.FOV))
 		u := p.FOV[0]
-		for _, v := range p.FOV[1:] {
+		for i, v := range p.FOV[1:] {
 			θ := math.Atan2(u[1].Y-p.Pos.Y, u[1].X-p.Pos.X)
 			φ := math.Atan2(v[0].Y-p.Pos.Y, v[0].X-p.Pos.X)
 			ψ := math.Abs(diffAngle(θ, φ))
 			r1 := math.Hypot(u[1].X-p.Pos.X, u[1].Y-p.Pos.Y)
 			r2 := math.Hypot(v[0].X-p.Pos.X, v[0].Y-p.Pos.Y)
+			id := p.ID[i+1]
 			if s.Env.Indistinct(ψ, r1, r2) {
 				u[1] = v[1]
+				id = -1
 				continue
 			}
 			ns = append(ns, u)
+			ni = append(ni, id)
 			u = v
 		}
 		p.FOV = append(ns, u)

@@ -53,6 +53,12 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 	}
 	defer checkClose(&err, perso)
 
+	social, err := NewDataset(file, "social", 0.0, []int{conf.Replicates, conf.SwarmSize, conf.SwarmSize})
+	if err != nil {
+		return err
+	}
+	defer checkClose(&err, social)
+
 	for k := uint(0); k < uint(conf.Replicates); k++ {
 		// show progress as percentage
 		fmt.Printf("\r% 3d%%", 100*k/uint(conf.Replicates))
@@ -69,6 +75,9 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 		if err := perso.DataSpace.SetOffset([]uint{k, 0}); err != nil {
 			return err
 		}
+		if err := social.DataSpace.SetOffset([]uint{k, 0, 0}); err != nil {
+			return err
+		}
 
 		pxd := make([]float64, len(sim.Swarm))
 		pyd := make([]float64, len(sim.Swarm))
@@ -79,6 +88,7 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 			pdd[i] = v.Dir
 		}
 		pi := personalInfo(sim)
+		si := socialInfo(sim)
 
 		if err := px.Dataset.WriteSubset(&pxd, px.MemSpace, px.DataSpace); err != nil {
 			return err
@@ -90,6 +100,9 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 			return err
 		}
 		if err := perso.Dataset.WriteSubset(&pi, perso.MemSpace, perso.DataSpace); err != nil {
+			return err
+		}
+		if err := social.Dataset.WriteSubset(&si, social.MemSpace, social.DataSpace); err != nil {
 			return err
 		}
 

@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/PrincetonUniversity/ellipswarm"
@@ -101,17 +102,25 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		s.Swarm[i].Dir = 0.5 * rand.NormFloat64()
 		s.Swarm[i].Body.Width = conf.BodyWidth
 		s.Swarm[i].Body.Offset = conf.BodyOffset
-		s.Swarm[i].Color = [4]float32{1, 1, 0, 1}
+		s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
 	}
 
 	for i := range s.Swarm {
 		s.Swarm[i].Detect(s)
 	}
 
-	pi := personalInfo(s)
-	for i := range s.Swarm {
-		// multiply by 2 because pi is rarely greater than 0.5
-		s.Swarm[i].Color[1] = float32(pi[i]) * 2
+	// pi := personalInfo(s)
+	// for i := range s.Swarm {
+	// 	// multiply by 2 because pi is rarely greater than 0.5
+	// 	s.Swarm[i].Color[1] = float32(pi[i]) * 2
+	// }
+
+	si := socialInfo(s)
+	for i, p := range s.Swarm {
+		s.Swarm[i].Attractivity = make([]float64, len(p.FOV))
+		for j, k := range p.ID {
+			s.Swarm[i].Attractivity[j] = si[k+i*conf.SwarmSize]
+		}
 	}
 
 	return s
@@ -138,6 +147,71 @@ func personalInfo(s *ellipswarm.Simulation) []float64 {
 		pi[i] = 1 - c
 	}
 	return pi
+}
+
+// socialInfo returns the probability of response matrix.
+// It's a square matrix stored in row major order where cell (i,j)
+// contains the probability that an event would propagate from j to i.
+func socialInfo(s *ellipswarm.Simulation) []float64 {
+	const (
+		β1 = 0.302
+		β2 = -1.421
+		β3 = -0.126
+	)
+	n := len(s.Swarm)
+	si := make([]float64, n*n)
+	for i, p := range s.Swarm {
+		id := make([]int, n)
+		for k := range id {
+			id[k] = k
+		}
+		angle := make([]float64, n)
+		for k, v := range p.FOV {
+			θ := math.Atan2(v[0].Y-p.Pos.Y, v[0].X-p.Pos.X)
+			φ := math.Atan2(v[1].Y-p.Pos.Y, v[1].X-p.Pos.X)
+			angle[p.ID[k]] += math.Abs(diffAngle(θ, φ))
+		}
+		sort.Sort(IDsByAngle{ID: id, Angle: angle})
+		for j, q := range s.Swarm {
+			// j startles
+			if i == j {
+				si[j+n*i] = 1
+				continue
+			}
+			// how far away is j from i
+			LMD := math.Log(s.Env.Dist(p.Pos, q.Pos))
+			// what's the rank of j in terms of angular area on the retina of i
+			AR := 1.0
+			for k := 0; id[k] != j; k++ {
+				AR++
+			}
+			// P(i|j) = proba i reacts when j startled
+			si[j+n*i] = 1 / (1 + math.Exp(-β1-β2*LMD-β3*AR))
+		}
+	}
+	return si
+}
+
+// IDsByAngle is a wrapper to sort IDs by decreasing subtended angle.
+type IDsByAngle struct {
+	ID    []int
+	Angle []float64
+}
+
+// Len returns the length of the slice.
+func (b IDsByAngle) Len() int {
+	return len(b.ID)
+}
+
+// Less compares the magnitude of two angles.
+func (b IDsByAngle) Less(i, j int) bool {
+	return b.Angle[i] > b.Angle[j]
+}
+
+// Swap swaps two elements.
+func (b IDsByAngle) Swap(i, j int) {
+	b.ID[i], b.ID[j] = b.ID[j], b.ID[i]
+	b.Angle[i], b.Angle[j] = b.Angle[j], b.Angle[i]
 }
 
 // dist is the trivial distance function.

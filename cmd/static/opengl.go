@@ -104,16 +104,18 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 		w.SwapBuffers()
 	})
 
+	focal = -1
+	si := socialInfo(s)
 	var quit bool
 	w.SetKeyCallback(func(w *glfw.Window, key glfw.Key, _ int, action glfw.Action, mod glfw.ModifierKey) {
 		if key == glfw.KeyEscape && action == glfw.Press {
 			quit = true
 		}
 		if key == glfw.KeyTab && action == glfw.Press {
-			// cycle through particles, then disable (focal = -1)
 			if focal > -1 {
-				s.Swarm[focal].Color[2] = 0
+				s.Swarm[focal].Color = [4]float32{1, 0, 0, 1}
 			}
+			// cycle through particles, then disable (focal = -1)
 			if mod == glfw.ModShift {
 				focal--
 			} else {
@@ -121,7 +123,14 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 			}
 			focal = (conf.SwarmSize+focal+2)%(conf.SwarmSize+1) - 1
 			if focal > -1 {
-				s.Swarm[focal].Color[2] = 1
+				for i := range s.Swarm {
+					s.Swarm[i].Color[1] = float32(si[i+focal*conf.SwarmSize])
+				}
+				s.Swarm[focal].Color = [4]float32{0.25, 0.75, 1, 1}
+			} else {
+				for i := range s.Swarm {
+					s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
+				}
 			}
 		}
 		if key == glfw.KeyR && action == glfw.Press {
