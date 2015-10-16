@@ -99,11 +99,29 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
 		s.Swarm[i].Pos.X = 0.5*conf.DomainSize + r*cos
 		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin*golden
-		s.Swarm[i].Dir = 0.5 * rand.NormFloat64()
+		s.Swarm[i].Dir = 0.1 * rand.NormFloat64()
 		s.Swarm[i].Body.Width = conf.BodyWidth
 		s.Swarm[i].Body.Offset = conf.BodyOffset
 		s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
 	}
+	odd := true
+	i := 0
+	for y := -golden * R; y < golden*R; y += 0.8 {
+		for x := -R; x < R; x += 1.6 {
+			var dx float64
+			if odd {
+				dx = 0.8
+			}
+			if (x/R)*(x/R)+(y/R/golden)*(y/R/golden) <= 1 {
+				s.Swarm[i].Pos.X = x + 0.5*conf.DomainSize + dx
+				s.Swarm[i].Pos.Y = y + 0.5*conf.DomainSize
+				i++
+			}
+		}
+		odd = !odd
+	}
+	s.Swarm = s.Swarm[:i]
+	conf.SwarmSize = i
 
 	for i := range s.Swarm {
 		s.Swarm[i].Detect(s)
