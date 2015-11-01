@@ -1,13 +1,16 @@
 # Example config file.
 
-Output            = "/Users/sleblanc/Desktop/Static/full.h5"
+Output            = "/Users/igoumiri/go/src/github.com/PrincetonUniversity/static-analysis/test.h5"
 #Output            = "test.h5"
 SwarmSize         = 300
-Replicates        = 10
+Replicates        = 12004
 BodyWidth         = 0.125
 BodyOffset        = 0.8
 AttenuationLength = 1000.0
 ContrastType      = "michelson"
 MaxAngle          = 0.01
 MaxContrast       = 0.1
-DomainSize        = 30.0
+SchoolMajorRadius = 15.0
+SchoolMinorRadius = 10.0
+SchoolType        = "data"
+SchoolDataPath    = "/Users/igoumiri/go/src/github.com/PrincetonUniversity/static-analysis/colin.h5"

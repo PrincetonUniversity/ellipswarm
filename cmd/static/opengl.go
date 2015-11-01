@@ -87,7 +87,8 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 	}
 
 	// handle scrolling zoom
-	vp := Viewport{{0, 0}, {float32(conf.DomainSize), float32(conf.DomainSize)}}
+	a := float32(conf.SchoolMajorRadius + 1)
+	vp := Viewport{{-a, -a}, {a, a}}
 	var focal int // index of the particle whose field of view is displayed
 	w.SetScrollCallback(func(w *glfw.Window, xo, yo float64) {
 		xc, yc := w.GetCursorPos()
@@ -134,7 +135,7 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 			}
 		}
 		if key == glfw.KeyR && action == glfw.Press {
-			vp = Viewport{{0, 0}, {float32(conf.DomainSize), float32(conf.DomainSize)}}
+			vp = Viewport{{-a, -a}, {a, a}}
 			d.UpdateViewport(vp)
 			d.Draw(s, focal, vp)
 			w.SwapBuffers()

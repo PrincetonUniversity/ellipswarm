@@ -25,8 +25,11 @@ type Config struct {
 	MaxAngle          float64 // unit: rad
 	MaxContrast       float64 // unit: 1
 
-	// Boundary conditions parameters
-	DomainSize float64 // unit: body length
+	// School parameters
+	SchoolMajorRadius float64 // unit: body length
+	SchoolMinorRadius float64 // unit: body length
+	SchoolType        string  // possible values: random, lattice, data
+	SchoolDataPath    string  // must be HDF5 file with datasets: px, py, dir
 }
 
 // DefaultConfig are the default parameters.
@@ -40,7 +43,9 @@ var DefaultConf = &Config{
 	ContrastType:      "michelson",
 	MaxAngle:          0.01,
 	MaxContrast:       0.1,
-	DomainSize:        30,
+	SchoolMajorRadius: 15,
+	SchoolMinorRadius: 10,
+	SchoolType:        "random",
 }
 
 // ParseConfig parses the TOML config file whose path is provided.

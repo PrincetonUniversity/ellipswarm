@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/PrincetonUniversity/ellipswarm"
+	"github.com/sbinet/go-hdf5"
 )
 
 const usage = `Usage: swarm [config_file]
@@ -74,7 +75,6 @@ func Fatal(err error) {
 // setup initializes the state and parameters of all particles.
 func setup(conf *Config) *ellipswarm.Simulation {
 	s := &ellipswarm.Simulation{
-		Swarm: make([]ellipswarm.Particle, conf.SwarmSize),
 		Env: ellipswarm.Environment{
 			Dist: dist,
 		},
@@ -92,36 +92,22 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		Fatal(fmt.Errorf("bad contrast type %q", conf.ContrastType))
 	}
 
-	R := 0.4 * conf.DomainSize
-	const golden = 0.618
+	switch conf.SchoolType {
+	case "random":
+		setupRandom(s, conf)
+	case "lattice":
+		setupLattice(s, conf)
+	case "data":
+		data.setup(s, conf)
+	default:
+		Fatal(fmt.Errorf("bad school type %q", conf.SchoolType))
+	}
+
 	for i := range s.Swarm {
-		r := R * math.Sqrt(rand.Float64())
-		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
-		s.Swarm[i].Pos.X = 0.5*conf.DomainSize + r*cos
-		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin*golden
-		s.Swarm[i].Dir = 0.1 * rand.NormFloat64()
 		s.Swarm[i].Body.Width = conf.BodyWidth
 		s.Swarm[i].Body.Offset = conf.BodyOffset
 		s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
 	}
-	odd := true
-	i := 0
-	for y := -golden * R; y < golden*R; y += 0.8 {
-		for x := -R; x < R; x += 1.6 {
-			var dx float64
-			if odd {
-				dx = 0.8
-			}
-			if (x/R)*(x/R)+(y/R/golden)*(y/R/golden) <= 1 {
-				s.Swarm[i].Pos.X = x + 0.5*conf.DomainSize + dx
-				s.Swarm[i].Pos.Y = y + 0.5*conf.DomainSize
-				i++
-			}
-		}
-		odd = !odd
-	}
-	s.Swarm = s.Swarm[:i]
-	conf.SwarmSize = i
 
 	for i := range s.Swarm {
 		s.Swarm[i].Detect(s)
@@ -142,6 +128,166 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	}
 
 	return s
+}
+
+// setupRandom places particles randomly within an ellipse.
+// The distribution of positions is uniform but anisotropic
+// (isotropic on a disk that is reshaped to an ellipse).
+func setupRandom(s *ellipswarm.Simulation, conf *Config) {
+	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
+	for i := range s.Swarm {
+		r := math.Sqrt(rand.Float64())
+		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
+		s.Swarm[i].Pos.X = r * cos * conf.SchoolMajorRadius
+		s.Swarm[i].Pos.Y = r * sin * conf.SchoolMinorRadius
+		s.Swarm[i].Dir = 2*math.Pi*rand.Float64() - math.Pi
+	}
+}
+
+// setupLattice places particles on a lattice within an ellipse.
+// The lattice is hexagonal with harcoded spacing.
+// The distribution of orientations is normal (σ = 0.1 rad).
+// The swarm size is defined by the geometry only.
+func setupLattice(s *ellipswarm.Simulation, conf *Config) {
+	const (
+		dx = 1.6 * 1.5
+		dy = 0.8 * 1.5
+		σ  = 0.1
+	)
+	a, b := conf.SchoolMajorRadius, conf.SchoolMinorRadius
+	i, odd := 0, true
+	for y := -b; y <= b; y += dy {
+		x0 := -a
+		if odd {
+			x0 += dx / 2
+		}
+		for x := x0; x <= a; x += dx {
+			if (x/a)*(x/a)+(y/b)*(y/b) <= 1 {
+				s.Swarm = append(s.Swarm, ellipswarm.Particle{})
+				s.Swarm[i].Pos.X = x
+				s.Swarm[i].Pos.Y = y
+				s.Swarm[i].Dir = σ * rand.NormFloat64()
+				i++
+			}
+		}
+		odd = !odd
+	}
+	conf.SwarmSize = i
+}
+
+type dataReader struct {
+	file  *hdf5.File
+	px    Dataset
+	py    Dataset
+	dir   Dataset
+	index uint
+}
+
+var data *dataReader
+
+func (d *dataReader) setup(s *ellipswarm.Simulation, conf *Config) {
+	if d == nil {
+		d = new(dataReader)
+		var err error
+		d.file, err = hdf5.OpenFile(conf.SchoolDataPath, hdf5.F_ACC_RDONLY)
+		if err != nil {
+			panic(err)
+		}
+		d.px.Dataset, err = d.file.OpenDataset("px")
+		if err != nil {
+			panic(err)
+		}
+		d.px.DataSpace = d.px.Dataset.Space()
+		d.py.Dataset, err = d.file.OpenDataset("py")
+		if err != nil {
+			panic(err)
+		}
+		d.py.DataSpace = d.py.Dataset.Space()
+		d.dir.Dataset, err = d.file.OpenDataset("dir")
+		if err != nil {
+			panic(err)
+		}
+		d.dir.DataSpace = d.dir.Dataset.Space()
+		dims, _, err := d.dir.DataSpace.SimpleExtentDims()
+		if err != nil {
+			panic(err)
+		}
+		start := make([]uint, len(dims))
+		count := make([]uint, len(dims))
+		copy(count, dims)
+		count[0] = 1
+		d.px.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
+		if err != nil {
+			panic(err)
+		}
+		d.py.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
+		if err != nil {
+			panic(err)
+		}
+		d.dir.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
+		if err != nil {
+			panic(err)
+		}
+		if err := d.px.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
+			panic(err)
+		}
+		if err := d.py.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
+			panic(err)
+		}
+		if err := d.dir.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
+			panic(err)
+		}
+		//
+		r := int(dims[0])
+		if r < conf.Replicates {
+			conf.Replicates = r
+		}
+		conf.SwarmSize = int(dims[1])
+		s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
+	}
+	// select at index
+	if err := d.px.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
+		panic(err)
+	}
+	if err := d.py.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
+		panic(err)
+	}
+	if err := d.dir.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
+		panic(err)
+	}
+	// read data
+	pxd := make([]float64, conf.SwarmSize)
+	if err := d.px.Dataset.ReadSubset(&pxd, d.px.MemSpace, d.px.DataSpace); err != nil {
+		panic(err)
+	}
+	pyd := make([]float64, conf.SwarmSize)
+	if err := d.py.Dataset.ReadSubset(&pyd, d.py.MemSpace, d.py.DataSpace); err != nil {
+		panic(err)
+	}
+	dird := make([]float64, conf.SwarmSize)
+	if err := d.dir.Dataset.ReadSubset(&dird, d.dir.MemSpace, d.dir.DataSpace); err != nil {
+		panic(err)
+	}
+	// hack
+	dims, _, err := d.dir.DataSpace.SimpleExtentDims()
+	if err != nil {
+		panic(err)
+	}
+	conf.SwarmSize = int(dims[0])
+	for i := 0; i < conf.SwarmSize; i++ {
+		if pxd[i] == 0.0 || pyd[i] == 0.0 {
+			conf.SwarmSize = i
+			break
+		}
+	}
+	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
+	// initialize swarm
+	for i := range s.Swarm {
+		s.Swarm[i].Pos.X = pxd[i]
+		s.Swarm[i].Pos.Y = pyd[i]
+		s.Swarm[i].Dir = dird[i]
+	}
+	d.index++
 }
 
 // diffAngle returns the difference between two angles in radians.
@@ -171,8 +317,12 @@ func personalInfo(s *ellipswarm.Simulation) []float64 {
 // It's a square matrix stored in row major order where cell (i,j)
 // contains the probability that an event would propagate from j to i.
 func socialInfo(s *ellipswarm.Simulation) []float64 {
+	// Values taken from Rosenthal et al. (2015) PNAS.
+	// In the paper, the scale is in cm with 5cm average body length.
+	// Here the scale is in body length so we adjust β1 accordingly.
+	// In the paper, β1' = 0.302. Here, β1 = β1' + β2⋅log(5)
 	const (
-		β1 = 0.302
+		β1 = -1.9850112735688565
 		β2 = -1.421
 		β3 = -0.126
 	)
