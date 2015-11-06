@@ -20,7 +20,7 @@ import (
 	"github.com/sbinet/go-hdf5"
 )
 
-const usage = `Usage: swarm [config_file]
+const usage = `Usage: static [config_file]
 
 The first argument is optional and is the path to a TOML config file.
 If no config file is specified, an interactive simulation
