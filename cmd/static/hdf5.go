@@ -29,23 +29,11 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 		return err
 	}
 
-	px, err := NewDataset(file, "px", 0.0, []int{conf.Replicates, conf.SwarmSize})
+	par, err := NewDataset(file, "particles", ellipswarm.State{}, []int{conf.Replicates, conf.SwarmSize})
 	if err != nil {
 		return err
 	}
-	defer checkClose(&err, px)
-
-	py, err := NewDataset(file, "py", 0.0, []int{conf.Replicates, conf.SwarmSize})
-	if err != nil {
-		return err
-	}
-	defer checkClose(&err, py)
-
-	dir, err := NewDataset(file, "dir", 0.0, []int{conf.Replicates, conf.SwarmSize})
-	if err != nil {
-		return err
-	}
-	defer checkClose(&err, dir)
+	defer checkClose(&err, par)
 
 	perso, err := NewDataset(file, "personal", 0.0, []int{conf.Replicates, conf.SwarmSize})
 	if err != nil {
@@ -63,13 +51,7 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 		// show progress as percentage
 		fmt.Printf("\r% 3d%%", 100*k/uint(conf.Replicates))
 
-		if err := px.DataSpace.SetOffset([]uint{k, 0}); err != nil {
-			return err
-		}
-		if err := py.DataSpace.SetOffset([]uint{k, 0}); err != nil {
-			return err
-		}
-		if err := dir.DataSpace.SetOffset([]uint{k, 0}); err != nil {
+		if err := par.DataSpace.SetOffset([]uint{k, 0}); err != nil {
 			return err
 		}
 		if err := perso.DataSpace.SetOffset([]uint{k, 0}); err != nil {
@@ -79,24 +61,14 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 			return err
 		}
 
-		pxd := make([]float64, len(sim.Swarm))
-		pyd := make([]float64, len(sim.Swarm))
-		pdd := make([]float64, len(sim.Swarm))
+		states := make([]ellipswarm.State, len(sim.Swarm))
 		for i, v := range sim.Swarm {
-			pxd[i] = v.Pos.X
-			pyd[i] = v.Pos.Y
-			pdd[i] = v.Dir
+			states[i] = v.State
 		}
 		pi := personalInfo(sim)
 		si := socialInfo(sim)
 
-		if err := px.Dataset.WriteSubset(&pxd, px.MemSpace, px.DataSpace); err != nil {
-			return err
-		}
-		if err := py.Dataset.WriteSubset(&pyd, py.MemSpace, py.DataSpace); err != nil {
-			return err
-		}
-		if err := dir.Dataset.WriteSubset(&pdd, dir.MemSpace, dir.DataSpace); err != nil {
+		if err := par.Dataset.WriteSubset(&states, par.MemSpace, par.DataSpace); err != nil {
 			return err
 		}
 		if err := perso.Dataset.WriteSubset(&pi, perso.MemSpace, perso.DataSpace); err != nil {
@@ -106,7 +78,7 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 			return err
 		}
 
-		sim = setup(conf)
+		reset(sim, conf)
 	}
 	fmt.Printf("\r100%%\n")
 	return nil

@@ -140,6 +140,9 @@ func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
 			d.Draw(s, focal, vp)
 			w.SwapBuffers()
 		}
+		if key == glfw.KeyN && action == glfw.Press {
+			reset(s, conf)
+		}
 		if key == glfw.KeyS && action == glfw.Press {
 			fmt.Printf("Focal individual: %d\n", focal)
 		}

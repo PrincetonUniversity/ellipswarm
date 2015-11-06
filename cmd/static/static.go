@@ -98,7 +98,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	case "lattice":
 		setupLattice(s, conf)
 	case "data":
-		data.setup(s, conf)
+		setupData(s, conf, &data)
 	default:
 		Fatal(fmt.Errorf("bad school type %q", conf.SchoolType))
 	}
@@ -119,22 +119,44 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	// 	s.Swarm[i].Color[1] = float32(pi[i]) * 2
 	// }
 
-	si := socialInfo(s)
-	for i, p := range s.Swarm {
-		s.Swarm[i].Attractivity = make([]float64, len(p.FOV))
-		for j, k := range p.ID {
-			s.Swarm[i].Attractivity[j] = si[k+i*conf.SwarmSize]
-		}
-	}
+	// si := socialInfo(s)
+	// for i, p := range s.Swarm {
+	// 	s.Swarm[i].Attractivity = make([]float64, len(p.FOV))
+	// 	for j, k := range p.ID {
+	// 		s.Swarm[i].Attractivity[j] = si[k+i*conf.SwarmSize]
+	// 	}
+	// }
 
 	return s
 }
 
-// setupRandom places particles randomly within an ellipse.
-// The distribution of positions is uniform but anisotropic
-// (isotropic on a disk that is reshaped to an ellipse).
+// reset reinitializes the state of all particles.
+func reset(s *ellipswarm.Simulation, conf *Config) {
+	switch conf.SchoolType {
+	case "random":
+		resetRandom(s, conf)
+	case "lattice":
+		resetLattice(s, conf)
+	case "data":
+		resetData(s, conf, &data)
+	default:
+		Fatal(fmt.Errorf("bad school type %q", conf.SchoolType))
+	}
+	for i := range s.Swarm {
+		s.Swarm[i].Detect(s)
+	}
+}
+
+// setupRandom initializes the swarm with resetRandom.
 func setupRandom(s *ellipswarm.Simulation, conf *Config) {
 	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
+	resetRandom(s, conf)
+}
+
+// resetRandom places particles randomly within an ellipse.
+// The distribution of positions is uniform but anisotropic
+// (isotropic on a disk that is reshaped to an ellipse).
+func resetRandom(s *ellipswarm.Simulation, conf *Config) {
 	for i := range s.Swarm {
 		r := math.Sqrt(rand.Float64())
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
@@ -154,6 +176,7 @@ func setupLattice(s *ellipswarm.Simulation, conf *Config) {
 		dy = 0.8 * 1.5
 		σ  = 0.1
 	)
+	s.Swarm = make([]ellipswarm.Particle, 0, conf.SwarmSize)
 	a, b := conf.SchoolMajorRadius, conf.SchoolMinorRadius
 	i, odd := 0, true
 	for y := -b; y <= b; y += dy {
@@ -175,119 +198,85 @@ func setupLattice(s *ellipswarm.Simulation, conf *Config) {
 	conf.SwarmSize = i
 }
 
-type dataReader struct {
-	file  *hdf5.File
-	px    Dataset
-	py    Dataset
-	dir   Dataset
-	index uint
+// resetLattice simply randomizes the orientations.
+func resetLattice(s *ellipswarm.Simulation, conf *Config) {
+	const σ = 0.1
+	for i := range s.Swarm {
+		s.Swarm[i].Dir = σ * rand.NormFloat64()
+	}
 }
 
-var data *dataReader
+type dataReader struct {
+	file   *hdf5.File
+	par    Dataset
+	states []ellipswarm.State
+	index  uint
+}
 
-func (d *dataReader) setup(s *ellipswarm.Simulation, conf *Config) {
-	if d == nil {
-		d = new(dataReader)
-		var err error
-		d.file, err = hdf5.OpenFile(conf.SchoolDataPath, hdf5.F_ACC_RDONLY)
-		if err != nil {
-			panic(err)
-		}
-		d.px.Dataset, err = d.file.OpenDataset("px")
-		if err != nil {
-			panic(err)
-		}
-		d.px.DataSpace = d.px.Dataset.Space()
-		d.py.Dataset, err = d.file.OpenDataset("py")
-		if err != nil {
-			panic(err)
-		}
-		d.py.DataSpace = d.py.Dataset.Space()
-		d.dir.Dataset, err = d.file.OpenDataset("dir")
-		if err != nil {
-			panic(err)
-		}
-		d.dir.DataSpace = d.dir.Dataset.Space()
-		dims, _, err := d.dir.DataSpace.SimpleExtentDims()
-		if err != nil {
-			panic(err)
-		}
-		start := make([]uint, len(dims))
-		count := make([]uint, len(dims))
-		copy(count, dims)
-		count[0] = 1
-		d.px.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
-		if err != nil {
-			panic(err)
-		}
-		d.py.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
-		if err != nil {
-			panic(err)
-		}
-		d.dir.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
-		if err != nil {
-			panic(err)
-		}
-		if err := d.px.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
-			panic(err)
-		}
-		if err := d.py.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
-			panic(err)
-		}
-		if err := d.dir.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
-			panic(err)
-		}
-		//
-		r := int(dims[0])
-		if r < conf.Replicates {
-			conf.Replicates = r
-		}
-		conf.SwarmSize = int(dims[1])
-		s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
-	}
-	// select at index
-	if err := d.px.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
-		panic(err)
-	}
-	if err := d.py.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
-		panic(err)
-	}
-	if err := d.dir.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
-		panic(err)
-	}
-	// read data
-	pxd := make([]float64, conf.SwarmSize)
-	if err := d.px.Dataset.ReadSubset(&pxd, d.px.MemSpace, d.px.DataSpace); err != nil {
-		panic(err)
-	}
-	pyd := make([]float64, conf.SwarmSize)
-	if err := d.py.Dataset.ReadSubset(&pyd, d.py.MemSpace, d.py.DataSpace); err != nil {
-		panic(err)
-	}
-	dird := make([]float64, conf.SwarmSize)
-	if err := d.dir.Dataset.ReadSubset(&dird, d.dir.MemSpace, d.dir.DataSpace); err != nil {
-		panic(err)
-	}
-	// hack
-	dims, _, err := d.dir.DataSpace.SimpleExtentDims()
+var data dataReader
+
+func setupData(s *ellipswarm.Simulation, conf *Config, d *dataReader) {
+	var err error
+	d.file, err = hdf5.OpenFile(conf.SchoolDataPath, hdf5.F_ACC_RDONLY)
 	if err != nil {
 		panic(err)
 	}
-	conf.SwarmSize = int(dims[0])
-	for i := 0; i < conf.SwarmSize; i++ {
-		if pxd[i] == 0.0 || pyd[i] == 0.0 {
-			conf.SwarmSize = i
+	d.par.Dataset, err = d.file.OpenDataset("particles")
+	if err != nil {
+		panic(err)
+	}
+	d.par.DataSpace = d.par.Dataset.Space()
+	dims, _, err := d.par.DataSpace.SimpleExtentDims()
+	if err != nil {
+		panic(err)
+	}
+	start := make([]uint, len(dims))
+	count := make([]uint, len(dims))
+	copy(count, dims)
+	count[0] = 1
+	d.par.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
+	if err != nil {
+		panic(err)
+	}
+	if err := d.par.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
+		panic(err)
+	}
+	r := int(dims[0])
+	if r < conf.Replicates {
+		conf.Replicates = r
+	}
+	conf.SwarmSize = int(dims[1])
+	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize, conf.SwarmSize)
+	d.states = make([]ellipswarm.State, conf.SwarmSize)
+	resetData(s, conf, d)
+}
+
+func resetData(s *ellipswarm.Simulation, conf *Config, d *dataReader) {
+	if err := d.par.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
+		panic(err)
+	}
+	if err := d.par.Dataset.ReadSubset(&d.states, d.par.MemSpace, d.par.DataSpace); err != nil {
+		panic(err)
+	}
+	// initialize swarm
+	max := conf.SwarmSize
+	for i, v := range d.states {
+		if v.Pos.X == 0 {
+			max = i
 			break
 		}
 	}
-	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
-	// initialize swarm
-	for i := range s.Swarm {
-		s.Swarm[i].Pos.X = pxd[i]
-		s.Swarm[i].Pos.Y = pyd[i]
-		s.Swarm[i].Dir = dird[i]
+	for i := 0; i < max; i++ {
+		if len(s.Swarm) <= i {
+			s.Swarm = append(s.Swarm, ellipswarm.Particle{})
+			s.Swarm[i].Body.Width = conf.BodyWidth
+			s.Swarm[i].Body.Offset = conf.BodyOffset
+			s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
+		}
+		s.Swarm[i].State = d.states[i]
 	}
-	d.index++
+	s.Swarm = s.Swarm[:max]
+	d.index = (d.index + 1) % uint(conf.Replicates)
 }
 
 // diffAngle returns the difference between two angles in radians.
@@ -327,7 +316,8 @@ func socialInfo(s *ellipswarm.Simulation) []float64 {
 		β3 = -0.126
 	)
 	n := len(s.Swarm)
-	si := make([]float64, n*n)
+	N := cap(s.Swarm)
+	si := make([]float64, N*N)
 	for i, p := range s.Swarm {
 		id := make([]int, n)
 		for k := range id {
@@ -343,7 +333,7 @@ func socialInfo(s *ellipswarm.Simulation) []float64 {
 		for j, q := range s.Swarm {
 			// j startles
 			if i == j {
-				si[j+n*i] = 1
+				si[j+n*i] = 0
 				continue
 			}
 			// how far away is j from i
@@ -355,6 +345,11 @@ func socialInfo(s *ellipswarm.Simulation) []float64 {
 			}
 			// P(i|j) = proba i reacts when j startled
 			si[j+n*i] = 1 / (1 + math.Exp(-β1-β2*LMD-β3*AR))
+		}
+	}
+	for i := n; i < N; i++ {
+		for j := n; j < N; j++ {
+			si[j+n*i] = 0
 		}
 	}
 	return si
