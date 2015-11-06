@@ -114,7 +114,18 @@ func (p *Particle) Detect(s *Simulation) {
 			for k, v := range p.FOV {
 				// add chunks of v that are not occluded by u
 				for _, c := range p.visibleChunks(u, v) {
-					ns = append(ns, Segment{v.Point(c.Start), v.Point(c.Stop)})
+					// skip indistinct segments
+					p1 := v.Point(c.Start)
+					p2 := v.Point(c.Stop)
+					d1 := math.Hypot(p1.X-p.Pos.X, p1.Y-p.Pos.Y)
+					d2 := math.Hypot(p2.X-p.Pos.X, p2.Y-p.Pos.Y)
+					ψ1 := math.Atan2(p1.Y-p.Pos.Y, p1.X-p.Pos.X)
+					ψ2 := math.Atan2(p2.Y-p.Pos.Y, p2.X-p.Pos.X)
+					if s.Env.Indistinct(math.Abs(diffAngle(ψ1, ψ2)), d1, d2) {
+						continue
+					}
+
+					ns = append(ns, Segment{p1, p2})
 					ni = append(ni, p.ID[k])
 				}
 
