@@ -43,7 +43,7 @@ type Display struct {
 }
 
 // RunOpenGL runs an interactive simulation in an OpenGL window.
-func RunOpenGL(conf *Config, s *ellipswarm.Simulation) error {
+func RunOpenGL(s *ellipswarm.Simulation, conf *Config) error {
 	// init GLFW and OpenGL
 	if err := glfw.Init(); err != nil {
 		return err

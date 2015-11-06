@@ -57,9 +57,9 @@ func main() {
 
 	// run interactively or not depending on config
 	if conf.Output == "" {
-		err = RunOpenGL(conf, sim)
+		err = RunOpenGL(sim, conf)
 	} else {
-		err = RunHDF5(conf, sim)
+		err = RunHDF5(sim, conf)
 	}
 	if err != nil {
 		Fatal(err)

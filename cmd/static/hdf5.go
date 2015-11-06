@@ -14,7 +14,7 @@ import (
 
 // RunHDF5 generates random static swarms, runs various computations
 // on them and saves data to an HDF5 file.
-func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
+func RunHDF5(sim *ellipswarm.Simulation, conf *Config) (err error) {
 	if err := os.MkdirAll(filepath.Dir(conf.Output), 0755); err != nil {
 		return err
 	}
