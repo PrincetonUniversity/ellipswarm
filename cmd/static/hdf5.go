@@ -61,7 +61,7 @@ func RunHDF5(sim *ellipswarm.Simulation, conf *Config) (err error) {
 			return err
 		}
 
-		states := make([]ellipswarm.State, len(sim.Swarm))
+		states := make([]ellipswarm.State, conf.SwarmSize)
 		for i, v := range sim.Swarm {
 			states[i] = v.State
 		}
