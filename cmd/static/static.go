@@ -158,7 +158,7 @@ func setupRandom(s *ellipswarm.Simulation, conf *Config) {
 // (isotropic on a disk that is reshaped to an ellipse).
 func resetRandom(s *ellipswarm.Simulation, conf *Config) {
 	for i := range s.Swarm {
-		r := math.Sqrt(rand.Float64())
+		r := math.Sqrt(rand.Float64()) * conf.SchoolScale
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
 		s.Swarm[i].Pos.X = r * cos * conf.SchoolMajorRadius
 		s.Swarm[i].Pos.Y = r * sin * conf.SchoolMinorRadius
@@ -172,8 +172,8 @@ func resetRandom(s *ellipswarm.Simulation, conf *Config) {
 // The swarm size is defined by the geometry only.
 func setupLattice(s *ellipswarm.Simulation, conf *Config) {
 	const (
-		dx = 1.6 * 1.5
-		dy = 0.8 * 1.5
+		dx = 2.4
+		dy = 1.2
 		σ  = 0.1
 	)
 	s.Swarm = make([]ellipswarm.Particle, 0, conf.SwarmSize)
@@ -187,8 +187,8 @@ func setupLattice(s *ellipswarm.Simulation, conf *Config) {
 		for x := x0; x <= a; x += dx {
 			if (x/a)*(x/a)+(y/b)*(y/b) <= 1 {
 				s.Swarm = append(s.Swarm, ellipswarm.Particle{})
-				s.Swarm[i].Pos.X = x
-				s.Swarm[i].Pos.Y = y
+				s.Swarm[i].Pos.X = x * conf.SchoolScale
+				s.Swarm[i].Pos.Y = y * conf.SchoolScale
 				s.Swarm[i].Dir = σ * rand.NormFloat64()
 				i++
 			}
@@ -273,7 +273,9 @@ func resetData(s *ellipswarm.Simulation, conf *Config, d *dataReader) {
 			s.Swarm[i].Body.Offset = conf.BodyOffset
 			s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
 		}
-		s.Swarm[i].State = d.states[i]
+		si := d.states[i]
+		s.Swarm[i].Pos = ellipswarm.Point{si.Pos.X * conf.SchoolScale, si.Pos.Y * conf.SchoolScale}
+		s.Swarm[i].Dir = si.Dir
 	}
 	s.Swarm = s.Swarm[:max]
 	d.index = (d.index + 1) % uint(conf.Replicates)

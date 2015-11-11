@@ -28,6 +28,7 @@ type Config struct {
 	// School parameters
 	SchoolMajorRadius float64 // unit: body length
 	SchoolMinorRadius float64 // unit: body length
+	SchoolScale       float64 // unit: 1
 	SchoolType        string  // possible values: random, lattice, data
 	SchoolDataPath    string  // must be HDF5 file with datasets: px, py, dir
 }
@@ -45,6 +46,7 @@ var DefaultConf = &Config{
 	MaxContrast:       0.1,
 	SchoolMajorRadius: 15,
 	SchoolMinorRadius: 10,
+	SchoolScale:       1,
 	SchoolType:        "random",
 }
 
