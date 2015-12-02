@@ -4,7 +4,7 @@ layout(points) in;
 layout(triangle_strip, max_vertices=21) out;
 
 in Data {
-	float dir;
+	vec2 vel;
 	vec2 size;
 	float offset;
 	vec4 color;
@@ -21,8 +21,9 @@ const int N = 13; // number of points around ellipse
 
 void main()
 {
-	mat4 rot = mat4( cos(Attr[0].dir), sin(Attr[0].dir), 0.0, 0.0,
-	                -sin(Attr[0].dir), cos(Attr[0].dir), 0.0, 0.0,
+	vec2 v = normalize(Attr[0].vel);
+	mat4 rot = mat4(v.x, v.y, 0.0, 0.0,
+	               -v.y, v.x, 0.0, 0.0,
 	                0.0, 0.0, 1.0, 0.0,
 	                0.0, 0.0, 0.0, 1.0);
 

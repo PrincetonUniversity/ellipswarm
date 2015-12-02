@@ -15,11 +15,17 @@ type Config struct {
 	Dt        float64 // duration of time steps
 
 	// Particles parameters
-	Speed      float64 // unit: body length/time
 	BodyWidth  float64 // unit: body length
 	BodyOffset float64 // unit: 1
-	MaxTurn    float64 // unit: rad/time
-	SigmaNoise float64 // unit: rad/time
+	Mass       float64 // unit: mass
+	Alpha      float64 // unit: mass / time
+	Beta       float64 // unit: mass * time^3 / (body length)^2
+	Cr         float64 // unit: 1
+	Lr         float64 // unit: body length
+	Ca         float64 // unit: 1
+	La         float64 // unit: body length
+
+	// Environment parameters (cf. D'Orsogna 2005)
 
 	// Visibility and merging of look-alike objects parameters
 	AttenuationLength float64 // unit: body length
@@ -41,11 +47,15 @@ var DefaultConf = &Config{
 	SwarmSize:         75,
 	Steps:             10000,
 	Dt:                0.1,
-	Speed:             1.0,
 	BodyWidth:         0.125,
 	BodyOffset:        0.8,
-	MaxTurn:           1.5,
-	SigmaNoise:        0.25,
+	Mass:              1,
+	Alpha:             1.2,
+	Beta:              0.37,
+	Cr:                2,
+	Lr:                1,
+	Ca:                1,
+	La:                4,
 	AttenuationLength: 3.0,
 	ContrastType:      "michelson",
 	MaxAngle:          0.01,

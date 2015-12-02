@@ -15,9 +15,9 @@ import (
 // A DataPoint is what is recorded in the HDF5 file for each particle at each step.
 // This structure is mapped to a compound datatype in HDF5 so member names are important.
 type DataPoint struct {
-	Pos   ellipswarm.Point // position
-	Dir   float64          // direction (angle in rad)
-	Group int              // index of the group that contains the particle
+	Pos   ellipswarm.Vec2 // position
+	Vel   ellipswarm.Vec2 // velocity
+	Group int             // index of the group that contains the particle
 }
 
 // RunHDF5 runs a simulation and saves data to an HDF5 file.
@@ -63,7 +63,7 @@ func RunHDF5(conf *Config, sim *ellipswarm.Simulation) (err error) {
 		id, n := groupIDs(conf, sim)
 		for i, v := range sim.Swarm {
 			p[i].Pos = v.Pos
-			p[i].Dir = v.Dir
+			p[i].Vel = v.Vel
 			p[i].Group = id[i]
 		}
 

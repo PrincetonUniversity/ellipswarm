@@ -3,13 +3,13 @@
 uniform vec2 vp[2]; // viewport
 
 layout(location = 0) in vec2 pos;
-layout(location = 1) in float dir;
+layout(location = 1) in vec2 vel;
 layout(location = 2) in float width;
 layout(location = 3) in float offset;
 layout(location = 4) in vec4 color;
 
 out Data {
-	float dir;
+	vec2 vel;
 	vec2 size;
 	float offset;
 	vec4 color;
@@ -22,7 +22,7 @@ void main()
 		2.0 * (pos.x - vp[0].x) / size.x - 1.0,
 		2.0 * (pos.y - vp[0].y) / size.y - 1.0,
 		0.0, 1.0);
-	Attr.dir = dir;
+	Attr.vel = vel;
 	Attr.size = vec2(1.0, width) / size.x;
 	Attr.offset = offset;
 	Attr.color = color;
