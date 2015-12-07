@@ -335,7 +335,7 @@ func socialInfo(s *ellipswarm.Simulation) []float64 {
 		for j, q := range s.Swarm {
 			// j startles
 			if i == j {
-				si[j+n*i] = 0
+				si[j+N*i] = 0
 				continue
 			}
 			// how far away is j from i
@@ -346,12 +346,16 @@ func socialInfo(s *ellipswarm.Simulation) []float64 {
 				AR++
 			}
 			// P(i|j) = proba i reacts when j startled
-			si[j+n*i] = 1 / (1 + math.Exp(-β1-β2*LMD-β3*AR))
+			si[j+N*i] = 1 / (1 + math.Exp(-β1-β2*LMD-β3*AR))
 		}
 	}
-	for i := n; i < N; i++ {
-		for j := n; j < N; j++ {
-			si[j+n*i] = 0
+	for i := 0; i < N; i++ {
+		j0 := n
+		if i >= n {
+			j0 = 0
+		}
+		for j := j0; j < N; j++ {
+			si[j+N*i] = 0
 		}
 	}
 	return si
