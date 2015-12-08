@@ -27,8 +27,6 @@
 // As it is now, it only affect the motion of particles, but not their vision.
 // It is a tricky problem as in a periodic world, you can potentially see
 // the same particle multiple times from different angles.
-//
-// The HDF5 outputs currently only contains positions.
 package main
 
 import (
@@ -40,6 +38,8 @@ import (
 	"time"
 
 	"github.com/PrincetonUniversity/ellipswarm"
+	"github.com/PrincetonUniversity/ellipswarm/hdf5"
+	"github.com/PrincetonUniversity/ellipswarm/opengl"
 )
 
 const usage = `Usage: swarm [config_file]
@@ -75,13 +75,38 @@ func main() {
 	}
 
 	// setup simulation
-	sim := setup(conf)
+	s := setup(conf)
 
 	// run interactively or not depending on config
 	if conf.Output == "" {
-		err = RunOpenGL(conf, sim)
+		err = opengl.Run(s, &opengl.Config{
+			MaxSwarmSize: conf.SwarmSize,
+			Xmin:         0,
+			Ymin:         0,
+			Xmax:         conf.DomainSize,
+			Ymax:         conf.DomainSize,
+		})
 	} else {
-		err = RunHDF5(conf, sim)
+		err = hdf5.Run(s, &hdf5.Config{
+			Output:       conf.Output,
+			Steps:        conf.Steps,
+			Step:         s.Step,
+			MaxSwarmSize: conf.SwarmSize,
+			Datasets: []*hdf5.Dataset{
+				{
+					Name: "particles",
+					Val:  ellipswarm.State{},
+					Dims: []int{conf.SwarmSize},
+					Data: getStates,
+				},
+				{
+					Name: "groups",
+					Val:  0,
+					Dims: []int{conf.SwarmSize},
+					Data: getGroups(conf.MaxGroupDist),
+				},
+			},
+		})
 	}
 	if err != nil {
 		Fatal(err)
@@ -183,15 +208,15 @@ func reflectiveMove(size float64) func(old, new ellipswarm.State) ellipswarm.Sta
 		s := math.Hypot(new.Vel.X, new.Vel.Y)
 		const MaxTurn = 1.5 // unit: rad/time
 		const Dt = 0.1      // unit: time
-		Δθ, Δθ_max := diffAngle(θ2, θ1), Dt*MaxTurn*s
+		δθ, Δθ := diffAngle(θ2, θ1), Dt*MaxTurn*s
 		switch {
-		case Δθ > Δθ_max:
-			θ2 = θ1 + Δθ_max
-		case Δθ < -Δθ_max:
-			θ2 = θ1 - Δθ_max
+		case δθ > Δθ:
+			θ2 = θ1 + Δθ
+		case δθ < -Δθ:
+			θ2 = θ1 - Δθ
 		}
 		y, x := math.Sincos(θ2)
-		new.Vel = ellipswarm.Vec2{s * x, s * y}
+		new.Vel = ellipswarm.Vec2{X: s * x, Y: s * y}
 		// END HACK
 		return new
 	}
@@ -279,4 +304,62 @@ func attractivity(λ, maxContrast, bodyWidth float64) func(φ, r, θ float64) fl
 		}
 		return 0
 	}
+}
+
+func getStates(s *ellipswarm.Simulation) interface{} {
+	// FIXME: handle varying swarm size
+	p := make([]ellipswarm.State, len(s.Swarm))
+	for i, v := range s.Swarm {
+		p[i] = v.State
+	}
+	return p
+}
+
+func getGroups(maxGroupDist float64) func(s *ellipswarm.Simulation) interface{} {
+	return func(s *ellipswarm.Simulation) interface{} {
+		id, _ := groupIDs(s, maxGroupDist)
+		return id
+	}
+}
+
+// groupIDs returns for each particle the ID of the group that contains it
+// and the total number of groups. Solitary individuals are assigned to group 0.
+// Group IDs are always sequential and start at 1.
+func groupIDs(s *ellipswarm.Simulation, maxGroupDist float64) ([]int, int) {
+	id := make([]int, len(s.Swarm))
+	nid := 1
+	for i, p := range s.Swarm {
+		for j := i + 1; j < len(s.Swarm); j++ {
+			if s.Env.Dist(p.State.Pos, s.Swarm[j].State.Pos) <= maxGroupDist {
+				if id[i] > 0 && id[j] > 0 && id[i] != id[j] {
+					// merge i's group and j's group
+					min, max := id[i], id[j]
+					if min > max {
+						min, max = max, min
+					}
+					for k, v := range id {
+						if v == max {
+							id[k] = min
+						}
+						if v > max {
+							id[k]--
+						}
+					}
+					nid--
+				} else if id[i] > 0 {
+					// attach j to i's group
+					id[j] = id[i]
+				} else if id[j] > 0 {
+					// attach i to j's group
+					id[i] = id[j]
+				} else {
+					// form a new group
+					id[i] = nid
+					id[j] = nid
+					nid++
+				}
+			}
+		}
+	}
+	return id, nid - 1
 }

@@ -17,7 +17,8 @@ import (
 	"time"
 
 	"github.com/PrincetonUniversity/ellipswarm"
-	"github.com/sbinet/go-hdf5"
+	"github.com/PrincetonUniversity/ellipswarm/hdf5"
+	"github.com/PrincetonUniversity/ellipswarm/opengl"
 )
 
 const usage = `Usage: static [config_file]
@@ -53,13 +54,46 @@ func main() {
 	}
 
 	// setup simulation
-	sim := setup(conf)
+	s := setup(conf)
 
 	// run interactively or not depending on config
 	if conf.Output == "" {
-		err = RunOpenGL(sim, conf)
+		err = opengl.Run(s, &opengl.Config{
+			MaxSwarmSize: conf.SwarmSize,
+			Step:         func() { reset(s, conf) },
+			ForcePause:   true,
+			Xmin:         -(conf.SchoolMajorRadius + 1),
+			Ymin:         -(conf.SchoolMajorRadius + 1),
+			Xmax:         conf.SchoolMajorRadius + 1,
+			Ymax:         conf.SchoolMajorRadius + 1,
+		})
 	} else {
-		err = RunHDF5(sim, conf)
+		err = hdf5.Run(s, &hdf5.Config{
+			Output:       conf.Output,
+			Steps:        conf.Replicates,
+			Step:         func() { reset(s, conf) },
+			MaxSwarmSize: conf.SwarmSize,
+			Datasets: []*hdf5.Dataset{
+				{
+					Name: "particles",
+					Val:  ellipswarm.State{},
+					Dims: []int{conf.SwarmSize},
+					Data: getStates,
+				},
+				{
+					Name: "personal",
+					Val:  0.0,
+					Dims: []int{conf.SwarmSize},
+					Data: func(s *ellipswarm.Simulation) interface{} { return personalInfo(s) },
+				},
+				{
+					Name: "social",
+					Val:  0.0,
+					Dims: []int{conf.SwarmSize, conf.SwarmSize},
+					Data: func(s *ellipswarm.Simulation) interface{} { return socialInfo(s) },
+				},
+			},
+		})
 	}
 	if err != nil {
 		Fatal(err)
@@ -71,6 +105,17 @@ func Fatal(err error) {
 	fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 	os.Exit(1)
 }
+
+func getStates(s *ellipswarm.Simulation) interface{} {
+	// FIXME: handle varying swarm size
+	p := make([]ellipswarm.State, len(s.Swarm))
+	for i, v := range s.Swarm {
+		p[i] = v.State
+	}
+	return p
+}
+
+var loader *hdf5.Loader
 
 // setup initializes the state and parameters of all particles.
 func setup(conf *Config) *ellipswarm.Simulation {
@@ -98,7 +143,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	case "lattice":
 		setupLattice(s, conf)
 	case "data":
-		setupData(s, conf, &data)
+		setupData(s, conf, loader)
 	default:
 		Fatal(fmt.Errorf("bad school type %q", conf.SchoolType))
 	}
@@ -138,7 +183,7 @@ func reset(s *ellipswarm.Simulation, conf *Config) {
 	case "lattice":
 		resetLattice(s, conf)
 	case "data":
-		resetData(s, conf, &data)
+		resetData(s, conf, loader)
 	default:
 		Fatal(fmt.Errorf("bad school type %q", conf.SchoolType))
 	}
@@ -162,7 +207,9 @@ func resetRandom(s *ellipswarm.Simulation, conf *Config) {
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
 		s.Swarm[i].Pos.X = r * cos * conf.SchoolMajorRadius
 		s.Swarm[i].Pos.Y = r * sin * conf.SchoolMinorRadius
-		s.Swarm[i].Dir = 2*math.Pi*rand.Float64() - math.Pi
+		vy, vx := math.Sincos(2 * math.Pi * rand.Float64())
+		s.Swarm[i].Vel.X = vx
+		s.Swarm[i].Vel.Y = vy
 	}
 }
 
@@ -189,7 +236,9 @@ func setupLattice(s *ellipswarm.Simulation, conf *Config) {
 				s.Swarm = append(s.Swarm, ellipswarm.Particle{})
 				s.Swarm[i].Pos.X = x * conf.SchoolScale
 				s.Swarm[i].Pos.Y = y * conf.SchoolScale
-				s.Swarm[i].Dir = σ * rand.NormFloat64()
+				vy, vx := math.Sincos(σ * rand.NormFloat64())
+				s.Swarm[i].Vel.X = vx
+				s.Swarm[i].Vel.Y = vy
 				i++
 			}
 		}
@@ -202,83 +251,33 @@ func setupLattice(s *ellipswarm.Simulation, conf *Config) {
 func resetLattice(s *ellipswarm.Simulation, conf *Config) {
 	const σ = 0.1
 	for i := range s.Swarm {
-		s.Swarm[i].Dir = σ * rand.NormFloat64()
+		vy, vx := math.Sincos(σ * rand.NormFloat64())
+		s.Swarm[i].Vel.X = vx
+		s.Swarm[i].Vel.Y = vy
 	}
 }
 
-type dataReader struct {
-	file   *hdf5.File
-	par    Dataset
-	states []ellipswarm.State
-	index  uint
-}
-
-var data dataReader
-
-func setupData(s *ellipswarm.Simulation, conf *Config, d *dataReader) {
+func setupData(s *ellipswarm.Simulation, conf *Config, loader *hdf5.Loader) {
 	var err error
-	d.file, err = hdf5.OpenFile(conf.SchoolDataPath, hdf5.F_ACC_RDONLY)
+	loader, err = hdf5.NewLoader(conf.SchoolDataPath, "particles")
 	if err != nil {
 		panic(err)
 	}
-	d.par.Dataset, err = d.file.OpenDataset("particles")
-	if err != nil {
-		panic(err)
-	}
-	d.par.DataSpace = d.par.Dataset.Space()
-	dims, _, err := d.par.DataSpace.SimpleExtentDims()
-	if err != nil {
-		panic(err)
-	}
-	start := make([]uint, len(dims))
-	count := make([]uint, len(dims))
-	copy(count, dims)
-	count[0] = 1
-	d.par.MemSpace, err = hdf5.CreateSimpleDataspace(count[1:], nil)
-	if err != nil {
-		panic(err)
-	}
-	if err := d.par.DataSpace.SelectHyperslab(start, nil, count, nil); err != nil {
-		panic(err)
-	}
-	r := int(dims[0])
-	if r < conf.Replicates {
-		conf.Replicates = r
-	}
-	conf.SwarmSize = int(dims[1])
-	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize, conf.SwarmSize)
-	d.states = make([]ellipswarm.State, conf.SwarmSize)
-	resetData(s, conf, d)
+	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
+	resetData(s, conf, loader)
 }
 
-func resetData(s *ellipswarm.Simulation, conf *Config, d *dataReader) {
-	if err := d.par.DataSpace.SetOffset([]uint{d.index, 0}); err != nil {
+func resetData(s *ellipswarm.Simulation, conf *Config, loader *hdf5.Loader) {
+	if err := loader.Load(&s.Swarm); err != nil {
 		panic(err)
 	}
-	if err := d.par.Dataset.ReadSubset(&d.states, d.par.MemSpace, d.par.DataSpace); err != nil {
-		panic(err)
+	for i := range s.Swarm {
+		s.Swarm[i].Pos.X *= conf.SchoolScale
+		s.Swarm[i].Pos.Y *= conf.SchoolScale
+		s.Swarm[i].Body.Width = conf.BodyWidth
+		s.Swarm[i].Body.Offset = conf.BodyOffset
+		s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
 	}
-	// initialize swarm
-	max := conf.SwarmSize
-	for i, v := range d.states {
-		if v.Pos.X == 0 {
-			max = i
-			break
-		}
-	}
-	for i := 0; i < max; i++ {
-		if len(s.Swarm) <= i {
-			s.Swarm = append(s.Swarm, ellipswarm.Particle{})
-			s.Swarm[i].Body.Width = conf.BodyWidth
-			s.Swarm[i].Body.Offset = conf.BodyOffset
-			s.Swarm[i].Color = [4]float32{1, 0, 0, 1}
-		}
-		si := d.states[i]
-		s.Swarm[i].Pos = ellipswarm.Point{si.Pos.X * conf.SchoolScale, si.Pos.Y * conf.SchoolScale}
-		s.Swarm[i].Dir = si.Dir
-	}
-	s.Swarm = s.Swarm[:max]
-	d.index = (d.index + 1) % uint(conf.Replicates)
 }
 
 // diffAngle returns the difference between two angles in radians.
@@ -384,7 +383,7 @@ func (b IDsByAngle) Swap(i, j int) {
 }
 
 // dist is the trivial distance function.
-func dist(a, b ellipswarm.Point) float64 {
+func dist(a, b ellipswarm.Vec2) float64 {
 	return math.Hypot(a.X-b.X, a.Y-b.Y)
 }
 

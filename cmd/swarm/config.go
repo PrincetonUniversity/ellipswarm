@@ -14,7 +14,7 @@ type Config struct {
 	Steps     int     // number of time steps (hdf5 only)
 	Dt        float64 // duration of time steps
 
-	// Particles parameters
+	// Particles parameters (last 6 as in D'Orsogna 2005)
 	BodyWidth  float64 // unit: body length
 	BodyOffset float64 // unit: 1
 	Mass       float64 // unit: mass
@@ -24,8 +24,6 @@ type Config struct {
 	Lr         float64 // unit: body length
 	Ca         float64 // unit: 1
 	La         float64 // unit: body length
-
-	// Environment parameters (cf. D'Orsogna 2005)
 
 	// Visibility and merging of look-alike objects parameters
 	AttenuationLength float64 // unit: body length
@@ -41,7 +39,7 @@ type Config struct {
 	MaxGroupDist float64 // unit: body length
 }
 
-// DefaultConfig are the default parameters.
+// DefaultConf are the default parameters.
 var DefaultConf = &Config{
 	Output:            "",
 	SwarmSize:         75,

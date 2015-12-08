@@ -33,7 +33,7 @@ type Config struct {
 	SchoolDataPath    string  // must be HDF5 file with datasets: px, py, dir
 }
 
-// DefaultConfig are the default parameters.
+// DefaultConf are the default parameters.
 var DefaultConf = &Config{
 	Output:            "",
 	SwarmSize:         300,

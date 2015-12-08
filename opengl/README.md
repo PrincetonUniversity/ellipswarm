@@ -1,6 +1,12 @@
-# Swarm
+# Opengl
 
-Command swarm runs ellipswarm: vision-based swarming simulations.
+Package opengl provides interactive graphical output for ellipswarm.
+
+## Hacking
+
+If you modify the shaders in `shaders/`, don't forget to run `go generate` to update `shaders.go`.
+
+To remove OpenGL support completely, compile with `go get -tags nogl`.
 
 ## License
 
