@@ -140,7 +140,7 @@ func RunOpenGL(s *ellipswarm.Simulation, conf *Config) error {
 			d.Draw(s, focal, vp)
 			w.SwapBuffers()
 		}
-		if key == glfw.KeyN && action == glfw.Press {
+		if (key == glfw.KeyN || key == glfw.KeyRight) && action == glfw.Press {
 			reset(s, conf)
 		}
 		if key == glfw.KeyS && action == glfw.Press {
