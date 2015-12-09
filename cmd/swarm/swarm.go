@@ -81,6 +81,7 @@ func main() {
 	if conf.Output == "" {
 		err = opengl.Run(s, &opengl.Config{
 			MaxSwarmSize: conf.SwarmSize,
+			Step:         s.Step,
 			Xmin:         0,
 			Ymin:         0,
 			Xmax:         conf.DomainSize,
