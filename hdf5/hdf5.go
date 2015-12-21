@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"time"
 
 	"github.com/PrincetonUniversity/ellipswarm"
@@ -74,8 +73,7 @@ func Run(s *ellipswarm.Simulation, conf *Config) (err error) {
 			if err := d.fspace.SetOffset(start); err != nil {
 				return err
 			}
-			data := d.Data(s)
-			if err := d.dset.WriteSubset(&data, d.mspace, d.fspace); err != nil {
+			if err := d.dset.WriteSubset(d.Data(s), d.mspace, d.fspace); err != nil {
 				return err
 			}
 		}
@@ -134,31 +132,6 @@ func saveConfig(file *hdf5.File, conf *Config) (err error) {
 	now := time.Now().String()
 	if err := attr.Write(&now, dtype); err != nil {
 		return err
-	}
-
-	v := reflect.ValueOf(conf).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		err := func() error {
-			dtype, err := hdf5.NewDatatypeFromValue(v.Field(i).Interface())
-			if err != nil {
-				return err
-			}
-			defer checkClose(&err, dtype)
-
-			attr, err := dset.CreateAttribute(v.Type().Field(i).Name, dtype, scalar)
-			if err != nil {
-				return err
-			}
-			defer checkClose(&err, attr)
-
-			if err := attr.Write(v.Field(i).Addr().Interface(), dtype); err != nil {
-				return err
-			}
-			return nil
-		}()
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

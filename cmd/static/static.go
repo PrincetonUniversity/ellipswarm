@@ -84,13 +84,19 @@ func main() {
 					Name: "personal",
 					Val:  0.0,
 					Dims: []int{conf.SwarmSize},
-					Data: func(s *ellipswarm.Simulation) interface{} { return personalInfo(s) },
+					Data: func(s *ellipswarm.Simulation) interface{} {
+						pi := personalInfo(s)
+						return &pi
+					},
 				},
 				{
 					Name: "social",
 					Val:  0.0,
 					Dims: []int{conf.SwarmSize, conf.SwarmSize},
-					Data: func(s *ellipswarm.Simulation) interface{} { return socialInfo(s) },
+					Data: func(s *ellipswarm.Simulation) interface{} {
+						si := socialInfo(s)
+						return &si
+					},
 				},
 			},
 		})
@@ -112,7 +118,7 @@ func getStates(s *ellipswarm.Simulation) interface{} {
 	for i, v := range s.Swarm {
 		p[i] = v.State
 	}
-	return p
+	return &p
 }
 
 var loader *hdf5.Loader
@@ -143,7 +149,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	case "lattice":
 		setupLattice(s, conf)
 	case "data":
-		setupData(s, conf, loader)
+		setupData(s, conf, &loader)
 	default:
 		Fatal(fmt.Errorf("bad school type %q", conf.SchoolType))
 	}
@@ -257,14 +263,14 @@ func resetLattice(s *ellipswarm.Simulation, conf *Config) {
 	}
 }
 
-func setupData(s *ellipswarm.Simulation, conf *Config, loader *hdf5.Loader) {
+func setupData(s *ellipswarm.Simulation, conf *Config, loader **hdf5.Loader) {
 	var err error
-	loader, err = hdf5.NewLoader(conf.SchoolDataPath, "particles")
+	*loader, err = hdf5.NewLoader(conf.SchoolDataPath, "particles")
 	if err != nil {
 		panic(err)
 	}
 	s.Swarm = make([]ellipswarm.Particle, conf.SwarmSize)
-	resetData(s, conf, loader)
+	resetData(s, conf, *loader)
 }
 
 func resetData(s *ellipswarm.Simulation, conf *Config, loader *hdf5.Loader) {

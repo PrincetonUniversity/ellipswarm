@@ -79,7 +79,7 @@ func (l *Loader) Load(s *[]ellipswarm.Particle) error {
 	}
 	l.i = (l.i + 1) % l.n
 
-	if err := l.dset.ReadSubset(l.data, l.mspace, l.fspace); err != nil {
+	if err := l.dset.ReadSubset(&l.data, l.mspace, l.fspace); err != nil {
 		return err
 	}
 
