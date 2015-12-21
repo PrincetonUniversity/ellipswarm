@@ -1,0 +1,17 @@
+# Example config file.
+
+Output            = "/Users/sleblanc/src/github.com/PrincetonUniversity/static-analysis/data/fulldetected.h5"
+#Output            = "test.h5"
+SwarmSize         = 300
+Replicates        = 6333
+BodyWidth         = 0.125
+BodyOffset        = 0.8
+AttenuationLength = 1000.0
+ContrastType      = "michelson"
+MaxAngle          = 0.01
+MaxContrast       = 0.1
+SchoolMajorRadius = 15.0
+SchoolMinorRadius = 10.0
+SchoolScale       = 1.0
+SchoolType        = "data"
+SchoolDataPath    = "/Users/sleblanc/src/github.com/PrincetonUniversity/static-analysis/data/fulldata.h5"
