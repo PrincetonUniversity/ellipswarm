@@ -1,6 +1,8 @@
 package hdf5
 
 import (
+	"fmt"
+
 	"github.com/PrincetonUniversity/ellipswarm"
 	"github.com/sbinet/go-hdf5"
 )
@@ -9,8 +11,6 @@ import (
 type Loader struct {
 	i uint // index of current slice
 	n uint // total number of slices
-
-	ndims int // number of dimensions
 
 	data []ellipswarm.State // data buffer
 
@@ -40,13 +40,10 @@ func NewLoader(filepath, dataset string) (*Loader, error) {
 		checkClose(&err, l.file)
 		return nil, err
 	}
+	if len(dims) != 2 {
+		return nil, fmt.Errorf("loader: expected 2 dimensions, got %d", len(dims))
+	}
 	l.n = dims[0]
-	l.ndims = len(dims)
-
-	start := make([]uint, len(dims))
-	count := make([]uint, len(dims))
-	copy(count, dims)
-	count[0] = 1
 
 	l.mspace, err = hdf5.CreateSimpleDataspace(dims[1:], nil)
 	if err != nil {
@@ -56,6 +53,8 @@ func NewLoader(filepath, dataset string) (*Loader, error) {
 		return nil, err
 	}
 
+	start := []uint{0, 0}
+	count := []uint{1, dims[1]}
 	if err := l.fspace.SelectHyperslab(start, nil, count, nil); err != nil {
 		checkClose(&err, l.mspace)
 		checkClose(&err, l.fspace)
@@ -64,7 +63,7 @@ func NewLoader(filepath, dataset string) (*Loader, error) {
 		return nil, err
 	}
 
-	l.data = make([]ellipswarm.State, l.n)
+	l.data = make([]ellipswarm.State, dims[1])
 
 	return l, nil
 }
@@ -72,8 +71,7 @@ func NewLoader(filepath, dataset string) (*Loader, error) {
 // Load loads the next batch of data available
 // and cycles when everything has already been loaded.
 func (l *Loader) Load(s *[]ellipswarm.Particle) error {
-	start := make([]uint, l.ndims)
-	start[0] = l.i
+	start := []uint{l.i, 0}
 	if err := l.fspace.SetOffset(start); err != nil {
 		return err
 	}
