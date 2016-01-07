@@ -20,28 +20,29 @@ type Loader struct {
 	mspace *hdf5.Dataspace
 }
 
-// NewLoader opens a dataset in an HDF5 file and returns an initialized loader.
-func NewLoader(filepath, dataset string) (*Loader, error) {
+// NewLoader opens a dataset in an HDF5 file and returns
+// an initialized loader and the maximum swarm size.
+func NewLoader(filepath, dataset string) (*Loader, int, error) {
 	l := new(Loader)
 	var err error
 	l.file, err = hdf5.OpenFile(filepath, hdf5.F_ACC_RDONLY)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	l.dset, err = l.file.OpenDataset(dataset)
 	if err != nil {
 		checkClose(&err, l.file)
-		return nil, err
+		return nil, 0, err
 	}
 	l.fspace = l.dset.Space()
 	dims, _, err := l.fspace.SimpleExtentDims()
 	if err != nil {
 		checkClose(&err, l.dset)
 		checkClose(&err, l.file)
-		return nil, err
+		return nil, 0, err
 	}
 	if len(dims) != 2 {
-		return nil, fmt.Errorf("loader: expected 2 dimensions, got %d", len(dims))
+		return nil, 0, fmt.Errorf("loader: expected 2 dimensions, got %d", len(dims))
 	}
 	l.n = dims[0]
 
@@ -50,7 +51,7 @@ func NewLoader(filepath, dataset string) (*Loader, error) {
 		checkClose(&err, l.fspace)
 		checkClose(&err, l.dset)
 		checkClose(&err, l.file)
-		return nil, err
+		return nil, 0, err
 	}
 
 	start := []uint{0, 0}
@@ -60,12 +61,12 @@ func NewLoader(filepath, dataset string) (*Loader, error) {
 		checkClose(&err, l.fspace)
 		checkClose(&err, l.dset)
 		checkClose(&err, l.file)
-		return nil, err
+		return nil, 0, err
 	}
 
 	l.data = make([]ellipswarm.State, dims[1])
 
-	return l, nil
+	return l, int(dims[1]), nil
 }
 
 // Load loads the next batch of data available
