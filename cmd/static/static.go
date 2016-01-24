@@ -78,7 +78,7 @@ func main() {
 					Name: "particles",
 					Val:  ellipswarm.State{},
 					Dims: []int{conf.SwarmSize},
-					Data: getStates,
+					Data: getStates(conf.SwarmSize),
 				},
 				{
 					Name: "personal",
@@ -112,13 +112,15 @@ func Fatal(err error) {
 	os.Exit(1)
 }
 
-func getStates(s *ellipswarm.Simulation) interface{} {
-	// FIXME: handle varying swarm size
-	p := make([]ellipswarm.State, len(s.Swarm))
-	for i, v := range s.Swarm {
-		p[i] = v.State
+func getStates(size int) func(s *ellipswarm.Simulation) interface{} {
+	return func(s *ellipswarm.Simulation) interface{} {
+		p := make([]ellipswarm.State, size)
+		p = p[:len(s.Swarm)]
+		for i, v := range s.Swarm {
+			p[i] = v.State
+		}
+		return &p
 	}
-	return &p
 }
 
 var loader *hdf5.Loader
@@ -265,7 +267,7 @@ func resetLattice(s *ellipswarm.Simulation, conf *Config) {
 
 func setupData(s *ellipswarm.Simulation, conf *Config, loader **hdf5.Loader) {
 	var err error
-	*loader, err = hdf5.NewLoader(conf.SchoolDataPath, "particles")
+	*loader, conf.SwarmSize, err = hdf5.NewLoader(conf.SchoolDataPath, "particles")
 	if err != nil {
 		panic(err)
 	}
