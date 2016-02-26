@@ -72,6 +72,14 @@ func main() {
 			Steps:        conf.Replicates,
 			Step:         func() { reset(s, conf) },
 			MaxSwarmSize: conf.SwarmSize,
+			MetaData: map[string]interface{}{
+				"GridXmin":   conf.GridXmin,
+				"GridXmax":   conf.GridXmax,
+				"GridXcount": conf.GridXcount,
+				"GridYmin":   conf.GridYmin,
+				"GridYmax":   conf.GridYmax,
+				"GridYcount": conf.GridYcount,
+			},
 			Datasets: []*hdf5.Dataset{
 				{
 					Name: "particles",

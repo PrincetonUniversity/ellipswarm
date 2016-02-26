@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/PrincetonUniversity/ellipswarm"
@@ -33,11 +34,12 @@ type Dataset struct {
 
 // Config holds the parameters of the HDF5 driver.
 type Config struct {
-	Output       string     // path of output file
-	Steps        int        // total number of steps
-	Step         func()     // go to next step
-	MaxSwarmSize int        // maximum swarm size
-	Datasets     []*Dataset // list of datasets
+	Output       string                 // path of output file
+	Steps        int                    // total number of steps
+	Step         func()                 // go to next step
+	MaxSwarmSize int                    // maximum swarm size
+	MetaData     map[string]interface{} // metadata in config dataset
+	Datasets     []*Dataset             // list of datasets
 }
 
 // Run runs a simulation and saves data to an HDF5 file.
@@ -112,7 +114,8 @@ func saveConfig(file *hdf5.File, conf *Config) (err error) {
 	}
 	defer checkClose(&err, dset)
 
-	dtype, err := hdf5.NewDatatypeFromValue("")
+	now := time.Now().String()
+	dtype, err := hdf5.NewDatatypeFromValue(now)
 	if err != nil {
 		return err
 	}
@@ -122,6 +125,7 @@ func saveConfig(file *hdf5.File, conf *Config) (err error) {
 	if err != nil {
 		return err
 	}
+	defer checkClose(&err, scalar)
 
 	attr, err := dset.CreateAttribute("Time", dtype, scalar)
 	if err != nil {
@@ -129,9 +133,30 @@ func saveConfig(file *hdf5.File, conf *Config) (err error) {
 	}
 	defer checkClose(&err, attr)
 
-	now := time.Now().String()
 	if err := attr.Write(&now, dtype); err != nil {
 		return err
+	}
+
+	// save metadata
+	for k, v := range conf.MetaData {
+		dtype, err := hdf5.NewDatatypeFromValue(v)
+		if err != nil {
+			return err
+		}
+		defer checkClose(&err, dtype)
+
+		attr, err := dset.CreateAttribute(k, dtype, scalar)
+		if err != nil {
+			return err
+		}
+		defer checkClose(&err, attr)
+
+		u := reflect.New(reflect.ValueOf(v).Type())
+		u.Elem().Set(reflect.ValueOf(v))
+		v := u.Interface()
+		if err := attr.Write(v, dtype); err != nil {
+			return err
+		}
 	}
 
 	return nil
