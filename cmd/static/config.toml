@@ -1,7 +1,6 @@
 # Example config file.
 
-Output            = "/Users/sleblanc/src/github.com/PrincetonUniversity/static-analysis/data/scale/fullprocessed.h5"
-#Output            = "test.h5"
+Output            = "/Users/sleblanc/data/static-analysis/fullprocessed.h5"
 SwarmSize         = 300
 Replicates        = 6333
 BodyWidth         = 0.125
@@ -14,4 +13,4 @@ SchoolMajorRadius = 15.0
 SchoolMinorRadius = 10.0
 SchoolScale       = 1.0
 SchoolType        = "data"
-SchoolDataPath    = "/Users/sleblanc/src/github.com/PrincetonUniversity/static-analysis/data/fulldata.h5"
+SchoolDataPath    = "/Users/sleblanc/data/static-analysis/fulldata.h5"

@@ -81,7 +81,7 @@ func main() {
 				},
 				{
 					Name: "detections",
-					Val:  int64(0),
+					Val:  BitSet{},
 					Dims: []int{conf.GridYcount, conf.GridXcount},
 					Data: func(s *ellipswarm.Simulation) interface{} {
 						d := detect(s, conf)
@@ -270,16 +270,24 @@ func diffAngle(θ, φ float64) float64 {
 	return math.Mod(θ-φ+3*math.Pi, 2*math.Pi) - math.Pi
 }
 
+// A BitSet stores up to 256 boolean values.
+type BitSet [4]uint64
+
+// Set sets a bit in a BitSet.
+func (b *BitSet) Set(n uint8) {
+	b[(n&0xc0)>>6] |= 1 << (n & 0x3f)
+}
+
 // detect returns for each point in a grid the number
 // of particles which can detect it.
-func detect(s *ellipswarm.Simulation, conf *Config) []int {
-	d := make([]int, conf.GridXcount*conf.GridYcount)
+func detect(s *ellipswarm.Simulation, conf *Config) []BitSet {
+	d := make([]BitSet, conf.GridXcount*conf.GridYcount)
 	for i, y := range linspace(conf.GridYmin, conf.GridYmax, conf.GridYcount) {
 		for j, x := range linspace(conf.GridXmin, conf.GridXmax, conf.GridXcount) {
-			for _, p := range s.Swarm {
+			for k, p := range s.Swarm {
 				q := ellipswarm.Vec2{X: x, Y: y}
 				if visible(q, p) {
-					d[i*conf.GridXcount+j]++
+					d[i*conf.GridXcount+j].Set(uint8(k))
 				}
 			}
 		}
