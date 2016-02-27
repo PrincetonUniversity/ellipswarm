@@ -30,7 +30,7 @@ type Config struct {
 	SchoolMinorRadius float64 // unit: body length
 	SchoolScale       float64 // unit: 1
 	SchoolType        string  // possible values: random, lattice, data
-	SchoolDataPath    string  // must be HDF5 file with datasets: px, py, dir
+	SchoolDataPath    string  // must be HDF5 file containing dataset
 
 	// Grid parameters
 	GridXmin   float64 // unit: body length
