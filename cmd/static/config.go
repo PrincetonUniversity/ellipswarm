@@ -42,7 +42,7 @@ var DefaultConf = &Config{
 	BodyOffset:        0.8,
 	AttenuationLength: math.Inf(1),
 	ContrastType:      "michelson",
-	MaxAngle:          0.01,
+	MaxAngle:          0.02,
 	MaxContrast:       0.1,
 	SchoolMajorRadius: 15,
 	SchoolMinorRadius: 10,

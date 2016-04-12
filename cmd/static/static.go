@@ -94,7 +94,7 @@ func main() {
 					Val:  0.0,
 					Dims: []int{conf.SwarmSize, conf.SwarmSize},
 					Data: func(s *ellipswarm.Simulation) interface{} {
-						si := socialInfo(s)
+						si := socialInfo(s, conf.MaxAngle)
 						return &si
 					},
 				},
@@ -314,7 +314,7 @@ func personalInfo(s *ellipswarm.Simulation) []float64 {
 // socialInfo returns the probability of response matrix.
 // It's a square matrix stored in row major order where cell (i,j)
 // contains the probability that an event would propagate from j to i.
-func socialInfo(s *ellipswarm.Simulation) []float64 {
+func socialInfo(s *ellipswarm.Simulation, maxAngle float64) []float64 {
 	// Values taken from Rosenthal et al. (2015) PNAS.
 	// In the paper, the scale is in cm with 5cm average body length.
 	// Here the scale is in body length so we adjust β1 accordingly.
@@ -338,10 +338,12 @@ func socialInfo(s *ellipswarm.Simulation) []float64 {
 			φ := math.Atan2(v[1].Y-p.Pos.Y, v[1].X-p.Pos.X)
 			angle[p.ID[k]] += math.Abs(diffAngle(θ, φ))
 		}
+		unsorted_angle := make([]float64, n)
+		copy(unsorted_angle, angle)
 		sort.Sort(IDsByAngle{ID: id, Angle: angle})
 		for j, q := range s.Swarm {
 			// j startles
-			if i == j {
+			if i == j || unsorted_angle[j] < maxAngle {
 				si[j+N*i] = 0
 				continue
 			}
