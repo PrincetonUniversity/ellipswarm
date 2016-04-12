@@ -118,6 +118,14 @@ func (p *Particle) Detect(s *Simulation) {
 					d2 := math.Hypot(p2.X-p.Pos.X, p2.Y-p.Pos.Y)
 					ψ1 := math.Atan2(p1.Y-p.Pos.Y, p1.X-p.Pos.X)
 					ψ2 := math.Atan2(p2.Y-p.Pos.Y, p2.X-p.Pos.X)
+
+					// FIXME: Although a time saver, this can create undetected occlusions.
+					// A safer solution is to filter small segments after the fact.
+					// Temporary fix: use ContrastType = "perfect".
+					//
+					// Or one could argue that if an obstacle is indistiguishable but
+					// the target behind it is distiguishable, then it's not an occlusion
+					// and the target is fully visible.
 					if s.Env.Indistinct(math.Abs(diffAngle(ψ1, ψ2)), d1, d2) {
 						continue
 					}
