@@ -341,8 +341,9 @@ func makeProg(shaders []shader) (uint32, error) {
 	var fail bool
 	for _, s := range shaders {
 		src := bindata[s.path] + "\x00"
-		str, n := gl.Str(src), int32(len(src))
-		gl.ShaderSource(s.shader, 1, &str, &n)
+		str, free := gl.Strs(src)
+		gl.ShaderSource(s.shader, 1, str, nil)
+		free()
 		gl.CompileShader(s.shader)
 		var status int32
 		gl.GetShaderiv(s.shader, gl.COMPILE_STATUS, &status)
