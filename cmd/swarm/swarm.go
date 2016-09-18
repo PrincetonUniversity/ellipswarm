@@ -132,6 +132,16 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		},
 	}
 
+	switch conf.Model {
+	case "Couzin 2002":
+		const radPerDeg = math.Pi / 180
+		s.Behavior.Update = UpdateCouzin02(conf.Speed, conf.Zor, conf.Zoo, conf.Zoa, conf.BlindAngle*radPerDeg, conf.MaxTurn*radPerDeg, conf.SDError*radPerDeg)
+	case "D'Orsogna 2005":
+		s.Behavior.Update = UpdateDOrsogna05(conf.Mass, conf.Alpha, conf.Beta, conf.Cr, conf.Lr, conf.Ca, conf.La)
+	default:
+		Fatal(fmt.Errorf("invalid model %q", conf.Model))
+	}
+
 	switch conf.ContrastType {
 	case "michelson":
 		s.Env.Indistinct = indistinct(conf.AttenuationLength, conf.MaxAngle, conf.MaxContrast)
@@ -145,12 +155,15 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	case "infinite":
 		s.Env.Move = move
 		s.Env.Dist = dist
+		s.Env.Vec = vec
 	case "finite":
 		s.Env.Move = reflectiveMove(conf.DomainSize)
 		s.Env.Dist = dist
+		s.Env.Vec = vec
 	case "periodic":
 		s.Env.Move = periodicMove(conf.DomainSize)
 		s.Env.Dist = periodicDist(conf.DomainSize)
+		s.Env.Vec = periodicVec(conf.DomainSize)
 	default:
 		Fatal(fmt.Errorf("bad domain type %q", conf.DomainType))
 	}
@@ -161,17 +174,13 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		sin, cos := math.Sincos(2 * math.Pi * rand.Float64())
 		s.Swarm[i].Pos.X = 0.5*conf.DomainSize + r*cos
 		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin
-		s.Swarm[i].Vel.X = rand.NormFloat64()
-		s.Swarm[i].Vel.Y = rand.NormFloat64()
+		// s.Swarm[i].Vel.X = rand.NormFloat64()
+		// s.Swarm[i].Vel.Y = rand.NormFloat64()
+		θ := rand.Float64()
+		s.Swarm[i].Vel.X = conf.Speed * math.Cos(θ)
+		s.Swarm[i].Vel.Y = conf.Speed * math.Sin(θ)
 		s.Swarm[i].Body.Width = conf.BodyWidth
 		s.Swarm[i].Body.Offset = conf.BodyOffset
-		s.Swarm[i].Mass = conf.Mass
-		s.Swarm[i].Alpha = conf.Alpha
-		s.Swarm[i].Beta = conf.Beta
-		s.Swarm[i].Cr = conf.Cr
-		s.Swarm[i].Lr = conf.Lr
-		s.Swarm[i].Ca = conf.Ca
-		s.Swarm[i].La = conf.La
 		s.Swarm[i].Color = [4]float32{1, 1, 0, 1}
 	}
 
@@ -264,6 +273,29 @@ func periodicDist(size float64) func(a, b ellipswarm.Vec2) float64 {
 			y -= size
 		}
 		return math.Hypot(x, y)
+	}
+}
+
+// vec is the trivial vector pointing from u to v.
+func vec(u, v ellipswarm.Vec2) ellipswarm.Vec2 {
+	return ellipswarm.Vec2{v.X - u.X, v.Y - u.Y}
+}
+
+// periodicVec returns a vector pointing from u to v for periodic boundary conditions.
+func periodicVec(size float64) func(ellipswarm.Vec2, ellipswarm.Vec2) ellipswarm.Vec2 {
+	return func(u, v ellipswarm.Vec2) ellipswarm.Vec2 {
+		x, y := v.X-u.X, v.Y-u.Y
+		if 2*x <= -size {
+			x += size
+		} else if 2*x > size {
+			x -= size
+		}
+		if 2*y <= -size {
+			y += size
+		} else if 2*y > size {
+			y -= size
+		}
+		return ellipswarm.Vec2{x, y}
 	}
 }
 

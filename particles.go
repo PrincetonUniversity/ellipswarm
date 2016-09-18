@@ -28,14 +28,7 @@ type State struct {
 
 // Parameters contains the parameters of a particle.
 type Parameters struct {
-	Body  Ellipse // parameters of ellipsoidal body shape
-	Mass  float64 // mass of the particle
-	Alpha float64 // advection coefficient
-	Beta  float64 // drag coefficient
-	Cr    float64 // coefficient of repulsion
-	Lr    float64 // characteristic distance of repulsion
-	Ca    float64 // coefficient of attraction
-	La    float64 // characteristic distance of attraction
+	Body Ellipse // parameters of ellipsoidal body shape
 }
 
 // Memory contains the memory of a particle.
@@ -51,12 +44,12 @@ type Style struct {
 	Color [4]float32 // RGBA body color
 }
 
-// A Particle has a state, a set of parameters, a style and a memory.
+// A Particle has a state, parameters, memory, and a style.
 type Particle struct {
 	State
 	Parameters
-	Style
 	Memory
+	Style
 }
 
 // Detect computes the visual footprint of the neighbors of a particle.
@@ -333,53 +326,8 @@ func (p *Particle) Merge(s *Simulation) {
 	p.Memory.State = p.State
 }
 
-// Update updates the state of a particle based on its neighborhood.
-// TODO: add noise (potentially: environment noise + particle noise)
-func (p *Particle) Update(s *Simulation) {
-	gradU := p.gradMorsePotential(s)
-	f := func(v Vec2) Vec2 {
-		n := math.Hypot(v.X, v.Y)
-		k := p.Alpha - p.Beta*n*n
-		return Vec2{(k*v.X - gradU.X) / p.Mass, (k*v.Y - gradU.Y) / p.Mass}
-	}
-	p.Pos = Vec2{p.Pos.X + s.Env.Dt*p.Vel.X, p.Pos.Y + s.Env.Dt*p.Vel.Y}
-	p.Vel = integrateRK4(f, p.Vel, s.Env.Dt)
-	p.State = s.Env.Move(p.Memory.State, p.State)
-}
-
 // diffAngle returns the difference between two angles in radians.
 // θ and φ must be between -pi and pi. The result is between -pi and pi.
 func diffAngle(θ, φ float64) float64 {
 	return math.Mod(θ-φ+3*math.Pi, 2*math.Pi) - math.Pi
-}
-
-// integrateRK4 performs one step of time integration of f.
-func integrateRK4(f func(Vec2) Vec2, x Vec2, dt float64) Vec2 {
-	k1 := f(x)
-	k2 := f(Vec2{x.X + dt/2*k1.X, x.Y + dt/2*k1.Y})
-	k3 := f(Vec2{x.X + dt/2*k2.X, x.Y + dt/2*k2.Y})
-	k4 := f(Vec2{x.X + dt*k3.X, x.Y + dt*k3.Y})
-	return Vec2{x.X + dt*(k1.X+2*k2.X+2*k3.X+k4.X)/6, x.Y + dt*(k1.Y+2*k2.Y+2*k3.Y+k4.Y)/6}
-}
-
-// gradMorsePotential computes the gradient of the Morse potential around p.
-func (p Particle) gradMorsePotential(s *Simulation) Vec2 {
-	var gradU Vec2
-	for _, q := range s.Swarm {
-		// skip self or particles that are too distant
-		d := s.Env.Dist(p.Pos, q.Memory.State.Pos)
-		if d == 0 || s.Env.Indistinct(0, d, math.Inf(1)) {
-			continue
-		}
-
-		θ1 := math.Atan2(p.Vel.Y, p.Vel.X)
-		θ2 := math.Atan2(q.Memory.State.Vel.Y, q.Memory.State.Vel.X)
-		φ := math.Abs(diffAngle(θ1, θ2))
-
-		U := (p.Cr*math.Exp(-d/p.Lr)/p.Lr - p.Ca*math.Exp(-d/p.La)/p.La) / d
-		U += 0.5 * math.Tan(φ/2-math.Pi/4) / d
-		gradU.X += U * (q.Memory.State.Pos.X - p.Pos.X)
-		gradU.Y += U * (q.Memory.State.Pos.Y - p.Pos.Y)
-	}
-	return gradU
 }

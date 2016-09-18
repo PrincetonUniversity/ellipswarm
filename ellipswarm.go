@@ -12,13 +12,17 @@ type Environment struct {
 
 	// Move validates and canonicalize a move by returning
 	// the actual new state given a requested change in state.
-	// Coupled with Dist, it can be use to enforce complex geometries,
+	// Coupled with Dist and Vec, it can be use to enforce complex geometries,
 	// boundary conditions, and even physical laws of motion.
 	Move func(old, new State) State
 
-	// Dist returns the distance between two points. Coupled with Move,
+	// Dist returns the distance between two points. Coupled with Move and Vec,
 	// it can be used to create periodic boundary conditions.
 	Dist func(a, b Vec2) float64
+
+	// Vec returns the vector pointing from u to v. Coupled with Move and Dist,
+	// it can be used to create periodic boundary conditions.
+	Vec func(u, v Vec2) Vec2
 
 	// Indistinct returns wether two objects separated by an angle θ and
 	// at respective distance r1 and r2 from the observer are indistinguishable
@@ -32,6 +36,9 @@ type Behavior struct {
 	// at relative position (r, θ) from the focal particle.
 	// A negative value means repulsion. The scale is arbitrary.
 	Attractivity func(φ, r, θ float64) float64
+
+	// Update updates the position and velocity of particle p.
+	Update func(p *Particle, s *Simulation)
 }
 
 // A Simulation contains all the state and parameters of a simulation.
@@ -44,7 +51,7 @@ type Simulation struct {
 // Step runs a single simulation step.
 func (s *Simulation) Step() {
 	for i := range s.Swarm {
-		s.Swarm[i].Update(s)
+		s.Behavior.Update(&s.Swarm[i], s)
 	}
 	for i := range s.Swarm {
 		s.Swarm[i].Detect(s)

@@ -1,11 +1,24 @@
 # Example config file.
 
 #Output            = "test.h5"
-SwarmSize         = 75
+
+SwarmSize         = 100
 Steps             = 10000
 Dt                = 0.1
+
 BodyWidth         = 0.125
 BodyOffset        = 0.8
+
+Model             = "Couzin 2002"
+
+Speed             = 2.5
+Zor               = 1.0
+Zoo               = 2.5
+Zoa               = 18.0
+BlindAngle        = 90.0
+MaxTurn           = 40.0
+SDError           = 1.0
+
 Mass              = 1.0
 Alpha             = 1.2
 Beta              = 0.5
@@ -13,9 +26,11 @@ Cr                = 2.0
 Lr                = 1.0
 Ca                = 0.0
 La                = 4.0
+
 AttenuationLength = 6.0
 ContrastType      = "michelson"
 MaxAngle          = 0.01
 MaxContrast       = 0.1
-DomainType        = "finite"
-DomainSize        = 50.0
+
+DomainType        = "periodic"
+DomainSize        = 100.0

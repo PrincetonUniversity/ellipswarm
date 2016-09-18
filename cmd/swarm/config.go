@@ -14,16 +14,30 @@ type Config struct {
 	Steps     int     // number of time steps (hdf5 only)
 	Dt        float64 // duration of time steps
 
-	// Particles parameters (last 6 as in D'Orsogna 2005)
+	// Particles parameters
 	BodyWidth  float64 // unit: body length
 	BodyOffset float64 // unit: 1
-	Mass       float64 // unit: mass
-	Alpha      float64 // unit: mass / time
-	Beta       float64 // unit: mass * time^3 / (body length)^2
-	Cr         float64 // unit: 1
-	Lr         float64 // unit: body length
-	Ca         float64 // unit: 1
-	La         float64 // unit: body length
+
+	// Swarming model
+	Model string // either: "Couzin 2002"" or "D'Orsogna 2005"
+
+	// Parameters for "Couzin 2002" model
+	Speed      float64 // unit: body length / time
+	Zor        float64 // unit: body length
+	Zoo        float64 // unit: body length
+	Zoa        float64 // unit: body length
+	BlindAngle float64 // unit: deg
+	MaxTurn    float64 // unit: deg / time
+	SDError    float64 // unit: deg
+
+	// Parameters for "D'Orsogna 2005" model
+	Mass  float64 // unit: mass
+	Alpha float64 // unit: mass / time
+	Beta  float64 // unit: mass * time^3 / (body length)^2
+	Cr    float64 // unit: 1
+	Lr    float64 // unit: body length
+	Ca    float64 // unit: 1
+	La    float64 // unit: body length
 
 	// Visibility and merging of look-alike objects parameters
 	AttenuationLength float64 // unit: body length
