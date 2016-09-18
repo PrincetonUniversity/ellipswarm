@@ -15,7 +15,7 @@ func UpdateCouzin02(speed, zor, zoo, zoa, blind, maxTurn, σ float64) func(*elli
 		var vr, vo, va, vnew ellipswarm.Vec2
 		for _, q := range s.Swarm {
 			d := s.Env.Dist(p.Pos, q.Pos)
-			if d == 0 {
+			if d == 0 || s.Env.Indistinct(0, d, math.Inf(1)) {
 				continue
 			}
 			dv := s.Env.Vec(p.Pos, q.Pos)

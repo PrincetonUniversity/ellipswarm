@@ -21,12 +21,14 @@
 // Tab and shift tab allow to cycle through focal individuals.
 // Pressing Esc or closing the window will quit.
 //
-// Known bugs
+// Periodic boundary condition
 //
-// The periodic boundary condition is not implemented correctly.
-// As it is now, it only affect the motion of particles, but not their vision.
-// It is a tricky problem as in a periodic world, you can potentially see
-// the same particle multiple times from different angles.
+// When using periodic boundary conditions, the attenuation length has to
+// be less than -DomainSize / (2 * log(2 * MaxContrast / (1 + MaxContrast)))
+// so that the range of vison is less than half the domain size.
+// Otherwise, a particle could potentially see the same particle
+// multiple times (or even itself) from different angles and the
+// computational cost would explode.
 package main
 
 import (
@@ -122,6 +124,11 @@ func Fatal(err error) {
 
 // setup initializes the state and parameters of all particles.
 func setup(conf *Config) *ellipswarm.Simulation {
+	λmax := -conf.DomainSize / (2 * math.Log(2*conf.MaxContrast/(1+conf.MaxContrast)))
+	if conf.AttenuationLength > λmax {
+		Fatal(fmt.Errorf("The attenuation length must be smaller than %f", λmax))
+	}
+
 	s := &ellipswarm.Simulation{
 		Swarm: make([]ellipswarm.Particle, conf.SwarmSize),
 		Env: ellipswarm.Environment{

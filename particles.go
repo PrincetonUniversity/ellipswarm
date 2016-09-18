@@ -66,10 +66,12 @@ func (p *Particle) Detect(s *Simulation) {
 		φ, b := math.Atan2(q.Vel.Y, q.Vel.X), q.Body.Offset/2
 		sinφ, cosφ := math.Sincos(φ)
 		c := Vec2{X: q.Pos.X - b*cosφ, Y: q.Pos.Y - b*sinφ}
+		c = s.Env.Vec(Vec2{0, 0}, c) // ensure c within domain
 
 		// compute relative position to center in polar coordinates
-		r := math.Hypot(c.X-p.Pos.X, c.Y-p.Pos.Y)
-		θ := math.Atan2(c.Y-p.Pos.Y, c.X-p.Pos.X)
+		pc := s.Env.Vec(p.Pos, c)
+		r := s.Env.Dist(p.Pos, c)
+		θ := math.Atan2(pc.Y, pc.X)
 		sinθ, cosθ := math.Sincos(θ)
 
 		// compute position of extremal visible points relative to the center

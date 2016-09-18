@@ -39,7 +39,10 @@ type Config struct {
 	Ca    float64 // unit: 1
 	La    float64 // unit: body length
 
-	// Visibility and merging of look-alike objects parameters
+	// Visibility and merging of look-alike objects parameters.
+	// When using periodic boundary conditions, AttenuationLength
+	// must be smaller than:
+	//  -DomainSize / (2 * math.Log(2 * MaxContrast / (1 + MaxContrast)))
 	AttenuationLength float64 // unit: body length
 	ContrastType      string  // possible values: michelson, perfect
 	MaxAngle          float64 // unit: rad
