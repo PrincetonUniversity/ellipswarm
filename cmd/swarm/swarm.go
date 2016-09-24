@@ -142,7 +142,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	switch conf.Model {
 	case "Couzin 2002":
 		const radPerDeg = math.Pi / 180
-		s.Behavior.Update = UpdateCouzin02(conf.Speed, conf.Zor, conf.Zoo, conf.Zoa, conf.BlindAngle*radPerDeg, conf.MaxTurn*radPerDeg, conf.SDError*radPerDeg)
+		s.Behavior.Update = UpdateCouzin02(conf.Speed, conf.Zor, conf.Zoo, conf.Zoa, conf.BlindAngle*radPerDeg, conf.MaxTurn*radPerDeg, conf.SDError*radPerDeg, conf.Mode == "control", conf.Mode == "active")
 	case "D'Orsogna 2005":
 		s.Behavior.Update = UpdateDOrsogna05(conf.Mass, conf.Alpha, conf.Beta, conf.Cr, conf.Lr, conf.Ca, conf.La)
 	default:
@@ -183,7 +183,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		s.Swarm[i].Pos.Y = 0.5*conf.DomainSize + r*sin
 		// s.Swarm[i].Vel.X = rand.NormFloat64()
 		// s.Swarm[i].Vel.Y = rand.NormFloat64()
-		θ := rand.Float64()
+		θ := 2 * math.Pi * rand.Float64()
 		s.Swarm[i].Vel.X = conf.Speed * math.Cos(θ)
 		s.Swarm[i].Vel.Y = conf.Speed * math.Sin(θ)
 		s.Swarm[i].Body.Width = conf.BodyWidth

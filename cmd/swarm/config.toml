@@ -10,6 +10,7 @@ BodyWidth         = 0.125
 BodyOffset        = 0.8
 
 Model             = "Couzin 2002"
+Mode              = "active"
 
 Speed             = 2.5
 Zor               = 1.0

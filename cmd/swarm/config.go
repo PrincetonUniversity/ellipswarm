@@ -21,6 +21,9 @@ type Config struct {
 	// Swarming model
 	Model string // either: "Couzin 2002"" or "D'Orsogna 2005"
 
+	// Simulation mode
+	Mode string // possible values: control, passive, active
+
 	// Parameters for "Couzin 2002" model
 	Speed      float64 // unit: body length / time
 	Zor        float64 // unit: body length

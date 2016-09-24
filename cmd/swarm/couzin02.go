@@ -9,13 +9,13 @@ import (
 
 // UpdateCouzin02 updates the state of a particle based on its neighborhood
 // based on the model published in Couzin et al. 2002.
-func UpdateCouzin02(speed, zor, zoo, zoa, blind, maxTurn, σ float64) func(*ellipswarm.Particle, *ellipswarm.Simulation) {
+func UpdateCouzin02(speed, zor, zoo, zoa, blind, maxTurn, σ float64, control, active bool) func(*ellipswarm.Particle, *ellipswarm.Simulation) {
 	return func(p *ellipswarm.Particle, s *ellipswarm.Simulation) {
 		var nr, no, na float64
 		var vr, vo, va, vnew ellipswarm.Vec2
 		for _, q := range s.Swarm {
 			d := s.Env.Dist(p.Pos, q.Pos)
-			if d == 0 || s.Env.Indistinct(0, d, math.Inf(1)) {
+			if d == 0 || (!control && s.Env.Indistinct(0, d, math.Inf(1))) {
 				continue
 			}
 			dv := s.Env.Vec(p.Pos, q.Pos)
@@ -40,7 +40,28 @@ func UpdateCouzin02(speed, zor, zoo, zoa, blind, maxTurn, σ float64) func(*elli
 				va = ellipswarm.Vec2{vr.X + dx, vr.Y + dy}
 			}
 		}
-		if nr > 0 {
+
+		// handle scary blobs
+		var ns float64
+		var vs ellipswarm.Vec2
+		if active {
+			for _, fov := range p.FOV {
+				m := ellipswarm.Vec2{0.5 * (fov[0].X + fov[1].X), 0.5 * (fov[0].Y + fov[1].Y)}
+				u, v := s.Env.Vec(p.Pos, fov[0]), s.Env.Vec(p.Pos, fov[1])
+				w := s.Env.Vec(p.Pos, m)
+				r := math.Hypot(w.X, w.Y)
+				θ := math.Atan2(w.Y, w.X)
+				φ := math.Abs(diffAngle(math.Atan2(u.Y, u.X), math.Atan2(v.Y, v.X)))
+				if s.Behavior.Attractivity(φ, r, θ) < 0 {
+					ns += 1
+					vs = ellipswarm.Vec2{vs.X - w.X, vs.Y - w.Y}
+				}
+			}
+		}
+
+		if ns > 0 {
+			vnew = ellipswarm.Vec2{vs.X / ns, vs.Y / ns}
+		} else if nr > 0 {
 			vnew = ellipswarm.Vec2{vr.X / nr, vr.Y / nr}
 		} else {
 			switch {
