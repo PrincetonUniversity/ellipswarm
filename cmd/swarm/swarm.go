@@ -125,7 +125,14 @@ func Fatal(err error) {
 // setup initializes the state and parameters of all particles.
 func setup(conf *Config) *ellipswarm.Simulation {
 	λmax := -conf.DomainSize / (2 * math.Log(2*conf.MaxContrast/(1+conf.MaxContrast)))
-	if conf.AttenuationLength > λmax {
+	if conf.Model == "D'Orsogna 2005" && conf.Mode == "control" {
+		if conf.DomainType == "periodic" {
+			conf.AttenuationLength = λmax
+		} else {
+			conf.AttenuationLength = math.Inf(1)
+		}
+	}
+	if conf.DomainType == "periodic" && conf.AttenuationLength > λmax {
 		Fatal(fmt.Errorf("The attenuation length must be smaller than %f", λmax))
 	}
 
@@ -144,7 +151,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 		const radPerDeg = math.Pi / 180
 		s.Behavior.Update = UpdateCouzin02(conf.Speed, conf.Zor, conf.Zoo, conf.Zoa, conf.BlindAngle*radPerDeg, conf.MaxTurn*radPerDeg, conf.SDError*radPerDeg, conf.Mode == "control", conf.Mode == "active")
 	case "D'Orsogna 2005":
-		s.Behavior.Update = UpdateDOrsogna05(conf.Mass, conf.Alpha, conf.Beta, conf.Cr, conf.Lr, conf.Ca, conf.La)
+		s.Behavior.Update = UpdateDOrsogna05(conf.Mass, conf.Alpha, conf.Beta, conf.Cr, conf.Lr, conf.Ca, conf.La, conf.Co, conf.Lo, conf.Cs, conf.Ls, conf.Mode == "active")
 	default:
 		Fatal(fmt.Errorf("invalid model %q", conf.Model))
 	}

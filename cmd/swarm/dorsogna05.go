@@ -7,26 +7,52 @@ import (
 )
 
 // UpdateDOrsogna05 updates the state of a particle based on its neighborhood
-// according to the model published in D'Orsogna et al. 2005 in PRL.
-func UpdateDOrsogna05(m, α, β, Cr, lr, Ca, la float64) func(*ellipswarm.Particle, *ellipswarm.Simulation) {
+// based on the model published in D'Orsogna et al. 2005 in PRL.
+// WARNING: particles are pre-filtered based on contrast.
+func UpdateDOrsogna05(m, α, β, Cr, lr, Ca, la, Co, lo, Cs, ls float64, active bool) func(*ellipswarm.Particle, *ellipswarm.Simulation) {
 	// gradMorsePotential computes the gradient of the Morse potential around p.
 	gradMorsePotential := func(p *ellipswarm.Particle, s *ellipswarm.Simulation) ellipswarm.Vec2 {
 		var gradU ellipswarm.Vec2
-		for _, q := range s.Swarm {
-			// skip self or particles that are too distant
-			d := s.Env.Dist(p.Pos, q.Memory.State.Pos)
-			if d == 0 || s.Env.Indistinct(0, d, math.Inf(1)) {
-				continue
+		done := make([]bool, len(s.Swarm))
+		for i, fov := range p.FOV {
+			id := p.ID[i]
+			if id < 0 {
+				// merged segment
+				m := ellipswarm.Vec2{0.5 * (fov[0].X + fov[1].X), 0.5 * (fov[0].Y + fov[1].Y)}
+				u, v := s.Env.Vec(p.Pos, fov[0]), s.Env.Vec(p.Pos, fov[1])
+				w := s.Env.Vec(p.Pos, m)
+				r := math.Hypot(w.X, w.Y)
+				θ := math.Atan2(w.Y, w.X)
+				dx, dy := w.X/r, w.Y/r
+				φ := math.Abs(diffAngle(math.Atan2(u.Y, u.X), math.Atan2(v.Y, v.X)))
+				var U float64
+				if active && s.Behavior.Attractivity(φ, r, θ) < 0 {
+					U = Cs * math.Exp(-r/ls) / ls
+				} else {
+					U = Cr*math.Exp(-r/lr)/lr - Ca*math.Exp(-r/la)/la
+				}
+				gradU.X += U * dx
+				gradU.Y += U * dy
+			} else {
+				// particle
+				if done[id] {
+					continue
+				}
+				done[id] = true
+				q := s.Swarm[id].Memory.State
+				d := s.Env.Dist(p.Pos, q.Pos)
+				dv := s.Env.Vec(p.Pos, q.Pos)
+				dx, dy := dv.X/d, dv.Y/d
+				U := Cr*math.Exp(-d/lr)/lr - Ca*math.Exp(-d/la)/la
+				gradU.X += U * dx
+				gradU.Y += U * dy
+
+				// explicit alignment
+				U = -Co * math.Exp(-d/lo) / lo
+				θ := math.Atan2(q.Vel.Y, q.Vel.X)
+				gradU.X += U * math.Cos(θ)
+				gradU.Y += U * math.Sin(θ)
 			}
-
-			θ1 := math.Atan2(p.Vel.Y, p.Vel.X)
-			θ2 := math.Atan2(q.Memory.State.Vel.Y, q.Memory.State.Vel.X)
-			φ := math.Abs(diffAngle(θ1, θ2))
-
-			U := (Cr*math.Exp(-d/lr)/lr - Ca*math.Exp(-d/la)/la) / d
-			U += 0.5 * math.Tan(φ/2-math.Pi/4) / d
-			gradU.X += U * (q.Memory.State.Pos.X - p.Pos.X)
-			gradU.Y += U * (q.Memory.State.Pos.Y - p.Pos.Y)
 		}
 		return gradU
 	}

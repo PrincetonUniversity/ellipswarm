@@ -41,6 +41,10 @@ type Config struct {
 	Lr    float64 // unit: body length
 	Ca    float64 // unit: 1
 	La    float64 // unit: body length
+	Co    float64 // unit: 1
+	Lo    float64 // unit: body length
+	Cs    float64 // unit: 1
+	Ls    float64 // unit: body length
 
 	// Visibility and merging of look-alike objects parameters.
 	// When using periodic boundary conditions, AttenuationLength
@@ -67,6 +71,8 @@ var DefaultConf = &Config{
 	Dt:                0.1,
 	BodyWidth:         0.125,
 	BodyOffset:        0.8,
+	Model:             "D'Orsogna 2005",
+	Mode:              "passive",
 	Mass:              1,
 	Alpha:             1.2,
 	Beta:              0.37,
@@ -74,11 +80,15 @@ var DefaultConf = &Config{
 	Lr:                1,
 	Ca:                1,
 	La:                4,
+	Co:                1,
+	Lo:                2,
+	Cs:                4,
+	Ls:                4,
 	AttenuationLength: 3.0,
 	ContrastType:      "michelson",
 	MaxAngle:          0.01,
 	MaxContrast:       0.1,
-	DomainType:        "finite",
+	DomainType:        "periodic",
 	DomainSize:        50,
 	MaxGroupDist:      4,
 }
