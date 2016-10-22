@@ -305,13 +305,16 @@ func (p *Particle) Merge(s *Simulation) {
 		ns := make([]Segment, 0, len(p.FOV))
 		ni := make([]int, 0, len(p.FOV))
 		u := p.FOV[0]
+		id := p.ID[0]
 		for i, v := range p.FOV[1:] {
 			θ := math.Atan2(u[1].Y-p.Pos.Y, u[1].X-p.Pos.X)
 			φ := math.Atan2(v[0].Y-p.Pos.Y, v[0].X-p.Pos.X)
 			ψ := math.Abs(diffAngle(θ, φ))
 			r1 := math.Hypot(u[1].X-p.Pos.X, u[1].Y-p.Pos.Y)
 			r2 := math.Hypot(v[0].X-p.Pos.X, v[0].Y-p.Pos.Y)
-			id := p.ID[i+1]
+			if id != -1 {
+				id = p.ID[i+1]
+			}
 			if s.Env.Indistinct(ψ, r1, r2) {
 				u[1] = v[1]
 				id = -1
@@ -320,8 +323,10 @@ func (p *Particle) Merge(s *Simulation) {
 			ns = append(ns, u)
 			ni = append(ni, id)
 			u = v
+			id = p.ID[i+1]
 		}
 		p.FOV = append(ns, u)
+		p.ID = append(ni, id)
 	}
 
 	// save last state

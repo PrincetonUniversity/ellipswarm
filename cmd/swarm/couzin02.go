@@ -30,13 +30,13 @@ func UpdateCouzin02(speed, zor, zoo, zoa, blind, maxTurn, σ float64, control, a
 			// handle remaining particles
 			switch {
 			case d < zor:
-				nr += 1
+				nr++
 				vr = ellipswarm.Vec2{vr.X - dx, vr.Y - dy}
 			case d < zoo:
-				no += 1
+				no++
 				vo = ellipswarm.Vec2{vo.X + q.Vel.X/speed, vo.Y + q.Vel.Y/speed}
 			case d < zoa:
-				na += 1
+				na++
 				va = ellipswarm.Vec2{vr.X + dx, vr.Y + dy}
 			}
 		}
@@ -51,10 +51,11 @@ func UpdateCouzin02(speed, zor, zoo, zoa, blind, maxTurn, σ float64, control, a
 				w := s.Env.Vec(p.Pos, m)
 				r := math.Hypot(w.X, w.Y)
 				θ := math.Atan2(w.Y, w.X)
+				dx, dy := w.X/r, w.Y/r
 				φ := math.Abs(diffAngle(math.Atan2(u.Y, u.X), math.Atan2(v.Y, v.X)))
 				if s.Behavior.Attractivity(φ, r, θ) < 0 {
-					ns += 1
-					vs = ellipswarm.Vec2{vs.X - w.X, vs.Y - w.Y}
+					ns++
+					vs = ellipswarm.Vec2{vs.X - dx, vs.Y - dy}
 				}
 			}
 		}

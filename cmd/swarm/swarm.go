@@ -334,15 +334,10 @@ func attractivity(λ, maxContrast, bodyWidth float64) func(φ, r, θ float64) fl
 			r2, w2 := r*r, bodyWidth*bodyWidth
 			return math.Acos((r2 - w2 - 1) / math.Sqrt(1+r2*r2+w2*w2-2*w2+2*r2*(w2-1)*math.Cos(2*ψ)))
 		}
-		switch {
-		case r < 1: // short-range repulsion
-			return r - 1
-		case φ > f(r, math.Pi/2): // scared by large blobs
+		if φ > 1.1*f(r, math.Pi/2) { // scared by large blobs
 			return -1
-		case r > 4: // long-distance attraction
-			return 1
 		}
-		return 0
+		return 1
 	}
 }
 
