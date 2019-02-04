@@ -130,6 +130,7 @@ func setup(conf *Config) *ellipswarm.Simulation {
 	s := &ellipswarm.Simulation{
 		Env: ellipswarm.Environment{
 			Dist: dist,
+			Vec:  vec,
 		},
 		Behavior: ellipswarm.Behavior{
 			Attractivity: attractivity,
@@ -395,6 +396,11 @@ func (b IDsByAngle) Swap(i, j int) {
 // dist is the trivial distance function.
 func dist(a, b ellipswarm.Vec2) float64 {
 	return math.Hypot(a.X-b.X, a.Y-b.Y)
+}
+
+// vec is the trivial vector pointing from u to v.
+func vec(u, v ellipswarm.Vec2) ellipswarm.Vec2 {
+	return ellipswarm.Vec2{v.X - u.X, v.Y - u.Y}
 }
 
 // indistinct determines if two objects are indistinguishable given the

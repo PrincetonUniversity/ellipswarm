@@ -12,12 +12,12 @@ BodyOffset        = 0.8
 Model             = "D'Orsogna 2005"
 Mode              = "active"
 
-Speed             = 2.5
+Speed             = 2.0
 Zor               = 1.0
 Zoo               = 2.5
-Zoa               = 18.0
+Zoa               = 16.5
 BlindAngle        = 90.0
-MaxTurn           = 40.0
+MaxTurn           = 90.0
 SDError           = 1.0
 
 Mass              = 1.0
